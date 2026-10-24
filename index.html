@@ -96,6 +96,12 @@ p{margin:0}
 .mesa .mn{font:800 34px/1 var(--f-display)}
 .mesa .mt{font-weight:700;color:var(--accent)}
 .mesa .mi{font-size:13px;color:var(--muted)}
+.mesa .gn{font-weight:700;font-size:15px;color:var(--teal)}
+.mesa .gn.none{color:var(--amber);font-weight:600;font-size:13px}
+.gbar{width:100%;display:flex;align-items:center;gap:10px;min-height:50px;padding:0 14px;border-radius:14px;border:1px solid var(--teal);background:var(--surface);margin-bottom:12px;text-align:left}
+.gbar strong{flex:1;min-width:0;font-size:17px}
+.gbar.none{border-color:var(--amber)}.gbar.none strong{color:var(--amber)}
+.gbar .trocar{color:var(--teal);font-weight:700;font-size:14px}.gbar.none .trocar{color:var(--amber)}
 .mesa .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
 .mesa.old{border-color:var(--amber)}
 
@@ -125,8 +131,9 @@ p{margin:0}
 .tab{flex:none;min-height:42px;padding:0 16px;border-radius:21px;border:1px solid var(--line);background:transparent;font-weight:700}
 .tab[aria-pressed=true]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
 
-.picks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.pickw{position:relative}
+.picks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:start}
+.pickw{position:relative;display:flex;flex-direction:column;gap:6px}
+.pickw .pick{flex:1}
 .pick{width:100%;height:100%;min-height:100px;padding:12px;border-radius:14px;background:var(--surface-2);border:1px solid var(--line);display:flex;flex-direction:column;justify-content:space-between;gap:6px;text-align:left}
 .pick .n{font-weight:700;line-height:1.15}
 .pick .d{font-size:12px;color:var(--muted);line-height:1.25}
@@ -134,9 +141,10 @@ p{margin:0}
 .pick .low{font-size:12px;color:var(--amber);font-weight:700}
 .pick:active{transform:scale(.97)}
 .pickw.has .pick{border-color:var(--accent)}
-.stepq{position:absolute;right:6px;bottom:6px;display:flex;align-items:center;gap:8px;padding:3px 14px 3px 3px;border-radius:24px;background:var(--bg);border:1px solid var(--accent)}
-.stepq .q{font:800 18px var(--f-display);min-width:18px;text-align:center}
-.minus{width:44px;height:44px;border-radius:22px;border:0;background:var(--accent);color:var(--accent-ink);font:800 26px/1 var(--f-body);display:grid;place-items:center}
+.stepq{display:grid;grid-template-columns:56px 1fr 56px;align-items:center;gap:6px;padding:4px;border-radius:16px;background:var(--bg);border:1px solid var(--accent)}
+.stepq .q{font:800 22px var(--f-display);text-align:center}
+.plus{background:var(--teal)!important;color:var(--teal-ink)!important}
+.minus{width:100%;height:48px;border-radius:12px;border:0;background:var(--accent);color:var(--accent-ink);font:800 26px/1 var(--f-body);display:grid;place-items:center}
 .minus:active{transform:scale(.92)}
 
 .line{display:flex;flex-direction:column;gap:10px;padding:12px 14px;border-radius:14px;background:var(--surface);border:1px solid var(--line)}
@@ -206,6 +214,7 @@ input,select,textarea{width:100%;min-height:52px;border-radius:12px;border:1px s
 input[type=checkbox]{width:24px;min-height:24px;height:24px;accent-color:var(--accent)}
 .check{display:flex;align-items:center;gap:12px;margin-top:14px;min-height:44px}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
+.chipbtn[aria-pressed=true]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
 .chipbtn{min-height:40px;padding:0 14px;border-radius:20px;border:1px solid var(--line);background:var(--surface-2);font-weight:700}
 
 #modal{position:fixed;inset:0;z-index:50;background:rgba(3,10,12,.74);display:flex;align-items:flex-end;justify-content:center}
@@ -290,9 +299,9 @@ function ago(ts){
 
 /* ---------- dados (guardados na conta, iguais em todos os celulares) ---------- */
 var DB=null,canWrite=null,AUTH=null,USER=null;
-var M={menu:{},estoque:{},mesas:{},dias:{},log:[]};
+var M={menu:{},estoque:{},mesas:{},dias:{},log:[],garcons:[{id:'g1',nome:'Pedro',regras:{petisco:30,p2:50,p3:0,p4:60,p5:0,p6:80}}]};
 var ready={menu:false,mesas:false,estoque:false};
-var V={tab:'mesas',mesaId:null,mesaTab:'add',cat:'top',fechando:false,open:{},modal:null,pay:null,fatal:null,slow:false};
+var V={tab:'mesas',mesaId:null,mesaTab:'add',cat:'top',fechando:false,open:{},modal:null,pay:null,fatal:null,slow:false,gtab:'resumo',lastG:''};
 var pend={},net={offline:false,fail:false};
 
 /* fila guardada no proprio celular: se a internet cair e a tela recarregar, o que nao subiu ainda e enviado depois */
@@ -357,6 +366,7 @@ function listen(name,query,fn){
 function saveMesa(m){saveDoc('mesas/'+m.id,function(){return M.mesas[m.id]?clone(M.mesas[m.id]):null})}
 function saveEstoqueDoc(id){saveDoc('estoque/'+id,function(){return M.estoque[id]?clone(M.estoque[id]):null})}
 function saveMenuDoc(id){saveDoc('menu/'+id,function(){return M.menu[id]?clone(M.menu[id]):null})}
+function saveGarcons(){saveDoc('config/garcons',function(){return{list:clone(M.garcons)}})}
 function saveLog(){saveDoc('log/cancel',function(){return{list:M.log}})}
 
 /* ---------- regras ---------- */
@@ -400,8 +410,9 @@ function menos(itemId){
   var l=ls.filter(function(x){return x.status==='novo'}).pop()||ls[ls.length-1];
   l.qtd-=1;
   if(l.qtd<=0)m.itens=m.itens.filter(function(x){return x!==l});
+  saveMesa(m);
   logCancel(m.nome,l.nome,l.preco,'Tirado na hora');
-  saveMesa(m);toast('−1 '+l.nome);
+  toast('−1 '+l.nome);
 }
 function tirar(mesaId,luid,motivo){
   var m=mesaPor(mesaId),l=lineOf(m,luid);if(!l)return;
@@ -409,8 +420,9 @@ function tirar(mesaId,luid,motivo){
   if(motivo==='perda'){m.baixas=m.baixas||[];m.baixas.push({itemId:l.itemId,qtd:1,ts:now()})}
   if(l.qtd<=0)m.itens=m.itens.filter(function(x){return x!==l});
   var rot=MOTIVOS.filter(function(x){return x[0]===motivo})[0];
+  saveMesa(m);
   logCancel(m.nome,l.nome,l.preco,rot?rot[1]:motivo);
-  saveMesa(m);toast('Tirei 1 '+l.nome);
+  toast('Tirei 1 '+l.nome);
 }
 function avancar(mesaId,luid){
   var m=mesaPor(mesaId),l=lineOf(m,luid);if(!l)return;
@@ -429,8 +441,55 @@ function fecharMesa(){
   var m=mesaPor(V.mesaId);if(!m||!V.pay)return;
   var c=calc(m);
   m.status='fechada';m.pagamento=V.pay;m.total=c.total;m.fechadaTs=now();
+  var gg=garcom(m.garcomId);if(gg){var cm=calcComissao(m,gg);m.comissao={garcomId:gg.id,nome:gg.nome,total:cm.total,taxa:c.taxa,linhas:cm.linhas.map(function(l){return{k:l.k,qtd:l.qtd,valor:l.valor,total:l.total}})}}
   V.mesaId=null;V.fechando=false;V.pay=null;
   saveMesa(m);toast('Mesa '+m.nome+' fechada · '+money(c.total));
+}
+/* ---------- comissao dos garcons ---------- */
+var REGRAS=[['petisco','Petisco'],['caipe','Caipirinha (e caipvodka)'],['p2','Almoço p/ 2'],['p3','Almoço p/ 3'],['p4','Almoço p/ 4'],['p5','Almoço p/ 5'],['p6','Almoço p/ 6']];
+function rotulo(k){var r=REGRAS.filter(function(x){return x[0]===k})[0];return r?r[1]:k}
+function garcom(id){return M.garcons.filter(function(g){return g.id===id})[0]}
+function gNome(m){var g=garcom(m.garcomId);return g?g.nome:(m.garcomNome||'')}
+function regraDe(l){
+  var it=item(l.itemId),cat=it?it.cat:(/P\/\d/i.test(l.nome)?'Almoços':'');
+  if(cat==='Petiscos')return 'petisco';
+  if(/^caip/i.test(l.nome))return 'caipe';
+  if(cat==='Almoços'){var x=/P\/(\d)/i.exec(l.nome);if(x)return 'p'+x[1]}
+  return null;
+}
+function calcComissao(m,g){
+  var por={},total=0;
+  m.itens.forEach(function(l){
+    var k=regraDe(l);if(!k)return;
+    var v=(g.regras&&g.regras[k])||0;if(!v)return;
+    var x=por[k]||(por[k]={k:k,qtd:0,valor:v,total:0});
+    x.qtd+=l.qtd;x.total=round2(x.total+v*l.qtd);total=round2(total+v*l.qtd);
+  });
+  return{total:total,linhas:REGRAS.map(function(r){return por[r[0]]}).filter(Boolean)};
+}
+function comissaoDia(){
+  var map={},order=[],ab=0;
+  function novo(id,nome){return{id:id,nome:nome,com:0,taxa:0,nMesas:0,total:0,por:{}}}
+  M.garcons.forEach(function(g){map[g.id]=novo(g.id,g.nome);order.push(g.id)});
+  fechadas().forEach(function(m){
+    var c=m.comissao;if(!c)return;
+    var e=map[c.garcomId];
+    if(!e){e=map[c.garcomId]=novo(c.garcomId,c.nome);order.push(c.garcomId)}
+    e.com=round2(e.com+c.total);e.taxa=round2(e.taxa+(c.taxa||0));e.nMesas+=1;
+    c.linhas.forEach(function(l){var p=e.por[l.k]||(e.por[l.k]={k:l.k,qtd:0,total:0});p.qtd+=l.qtd;p.total=round2(p.total+l.total)});
+  });
+  abertas().forEach(function(m){var g=garcom(m.garcomId);if(g)ab=round2(ab+calcComissao(m,g).total+calc(m).taxa)});
+  var list=order.map(function(id){var e=map[id];e.total=round2(e.com+e.taxa);e.linhas=REGRAS.map(function(r){return e.por[r[0]]}).filter(Boolean);return e});
+  return{list:list,total:round2(list.reduce(function(a,e){return a+e.total},0)),aberto:ab};
+}
+function saveGarcom(){
+  var nome=val('g-nome').trim();
+  if(!nome){toast('Digite o nome');return false}
+  var regras={};
+  REGRAS.forEach(function(r){var v=parseFloat(val('g-r-'+r[0]).replace(',','.'));regras[r[0]]=(isNaN(v)||v<0)?0:round2(v)});
+  var g=V.modal.id==='new'?null:garcom(V.modal.id);
+  if(g){g.nome=nome;g.regras=regras}else M.garcons.push({id:gid('g'),nome:nome,regras:regras});
+  saveGarcons();toast('Garçom salvo');return true;
 }
 function resumoDia(){
   var f=fechadas(),porForma={},top={},total=0,taxa=0;
@@ -441,7 +500,7 @@ function resumoDia(){
   });
   return{total:round2(total),taxa:round2(taxa),nMesas:f.length,porForma:porForma,
     top:Object.keys(top).map(function(k){return{nome:k,qtd:top[k]}}).sort(function(a,b){return b.qtd-a.qtd}).slice(0,5),
-    abertas:abertas()};
+    abertas:abertas(),garcons:comissaoDia()};
 }
 async function fecharDia(){
   var r=resumoDia(),dia=gid('d'),its=menuList().filter(function(x){return x.estoque});
@@ -449,7 +508,8 @@ async function fecharDia(){
   var f=fechadas();
   V.modal=null;toast('Fechando o dia…');
   var ok=await writeNow('dias/'+dia,{ts:now(),total:r.total,taxa:r.taxa,nMesas:r.nMesas,porForma:r.porForma,top:r.top,
-    estoque:snap.map(function(s){return{nome:s.nome,qtd:s.qtd}}),abertas:r.abertas.map(function(m){return m.nome})});
+    estoque:snap.map(function(s){return{nome:s.nome,qtd:s.qtd}}),abertas:r.abertas.map(function(m){return m.nome}),
+    garcons:r.garcons.list.filter(function(g){return g.total>0}).map(function(g){return{nome:g.nome,total:g.total,com:g.com,taxa:g.taxa,linhas:g.linhas.map(function(l){return{k:l.k,qtd:l.qtd,total:l.total}})}})});
   if(!ok){toast('Não consegui fechar o dia. Tente de novo.');return}
   for(var i=0;i<snap.length;i++){
     var e=M.estoque[snap[i].id]||{};
@@ -503,7 +563,7 @@ function topTab(titulo,subtitulo){
 }
 function navHTML(){
   var f=filaItens(),nf=f.pr.length+f.q.length;
-  var tabs=[['mesas','Mesas'],['fila','Fila'],['estoque','Estoque'],['cardapio','Cardápio'],['hoje','Hoje']];
+  var tabs=[['mesas','Mesas'],['fila','Fila'],['estoque','Estoque'],['cardapio','Cardápio'],['hoje','Gestão']];
   return '<nav class="nav" aria-label="Seções">'+tabs.map(function(t){
     return '<button data-a="tab" data-v="'+t[0]+'"'+(V.tab===t[0]?' aria-current="page"':'')+'>'+t[1]+(t[0]==='fila'&&nf?'<span class="bd">'+nf+'</span>':'')+'</button>';
   }).join('')+'</nav>';
@@ -532,7 +592,7 @@ function sMesas(){
     var old=(now()-m.abertaTs)/MIN>90;
     var pend=np+nf,nent=m.itens.filter(function(l){return l.status==='entregue'}).length;
     var chips=(pend?'<span class="chip c-wait">'+pend+' não entregue'+(pend>1?'s':'')+'</span>':'')+(nent&&!pend?'<span class="chip c-entregue">✓ tudo entregue</span>':'')+(old?'<span class="chip c-novo">aberta há '+ago(m.abertaTs)+'</span>':'');
-    return '<button class="mesa'+(old?' old':'')+(pend?' pend':nent?' allok':'')+'" data-a="abrir-mesa" data-m="'+m.id+'"><span class="ml">Mesa</span><span class="mn">'+esc(m.nome)+'</span><span class="mt num">'+money(sub(m))+'</span><span class="mi">aberta há '+ago(m.abertaTs)+'</span>'+(chips?'<span class="chips">'+chips+'</span>':'')+'</button>';
+    return '<button class="mesa'+(old?' old':'')+(pend?' pend':nent?' allok':'')+'" data-a="abrir-mesa" data-m="'+m.id+'"><span class="ml">Mesa</span><span class="mn">'+esc(m.nome)+'</span>'+(gNome(m)?'<span class="gn">'+esc(gNome(m))+'</span>':'<span class="gn none">sem garçom</span>')+'<span class="mt num">'+money(sub(m))+'</span><span class="mi">aberta há '+ago(m.abertaTs)+'</span>'+(chips?'<span class="chips">'+chips+'</span>':'')+'</button>';
   }).join('')+'</div>';
   h+='</section>';
   return{top:topTab('Mesas',''),main:h,foot:navHTML()};
@@ -544,7 +604,7 @@ function sMesa(){
   var m=mesaPor(V.mesaId);
   var qtdMesa={};m.itens.forEach(function(l){qtdMesa[l.itemId]=(qtdMesa[l.itemId]||0)+l.qtd});
   var nitens=m.itens.reduce(function(a,l){return a+l.qtd},0);
-  var h='<div class="seg"><button data-a="mesa-tab" data-v="add" aria-pressed="'+(V.mesaTab==='add')+'">Adicionar</button><button data-a="mesa-tab" data-v="conta" aria-pressed="'+(V.mesaTab==='conta')+'">Conta ('+nitens+')</button></div>';
+  var h='<button class="gbar'+(gNome(m)?'':' none')+'" data-a="gmesa"><span class="muted small">Garçom</span><strong>'+esc(gNome(m)||'Sem garçom')+'</strong><span class="trocar">trocar</span></button><div class="seg"><button data-a="mesa-tab" data-v="add" aria-pressed="'+(V.mesaTab==='add')+'">Adicionar</button><button data-a="mesa-tab" data-v="conta" aria-pressed="'+(V.mesaTab==='conta')+'">Conta ('+nitens+')</button></div>';
   if(V.mesaTab==='add'){
     var tabs=[['top','Mais pedidos']].concat(CATS.map(function(c){return[c,c]}));
     h+='<div class="tabs">'+tabs.map(function(t){return '<button class="tab" data-a="cat" data-v="'+t[0]+'" aria-pressed="'+(V.cat===t[0])+'">'+t[1]+'</button>'}).join('')+'</div>';
@@ -553,7 +613,7 @@ function sMesa(){
     h+='<div class="picks">'+lista.map(function(it){
       var q=qtdMesa[it.id]||0,low=it.estoque&&restam(it.id)<=(it.min||0);
       return '<div class="pickw'+(q?' has':'')+'"><button class="pick" data-a="add" data-i="'+it.id+'"><span class="n">'+esc(it.nome)+'</span>'+(it.desc?'<span class="d">'+esc(it.desc)+'</span>':'')+(low?'<span class="low">acabando: restam '+restam(it.id)+'</span>':'')+'<span class="p num">'+money(it.preco)+'</span></button>'+
-        (q?'<div class="stepq"><button class="minus" data-a="menos" data-i="'+it.id+'" aria-label="Tirar 1 '+esc(it.nome)+'">−</button><span class="q num">'+q+'</span></div>':'')+'</div>';
+        (q?'<div class="stepq"><button class="minus" data-a="menos" data-i="'+it.id+'" aria-label="Tirar 1 '+esc(it.nome)+'">−</button><span class="q num">'+q+'</span><button class="minus plus" data-a="add" data-i="'+it.id+'" aria-label="Mais 1 '+esc(it.nome)+'">+</button></div>':'')+'</div>';
     }).join('')+'</div>';
   }else{
     if(!m.itens.length)h+='<p class="empty">Nada lançado ainda. Volte para Adicionar e toque nos itens.</p>';
@@ -630,9 +690,27 @@ function sCardapio(){
 function linhasHTML(m){
   return m.itens.map(function(l){return '<div class="sumrow"><span>'+l.qtd+'× '+esc(l.nome)+'</span><span>'+chip(l.status)+'</span></div>'}).join('')||'<p class="muted small">Sem itens.</p>';
 }
+function segG(){
+  return '<div class="seg"><button data-a="gtab" data-v="resumo" aria-pressed="'+(V.gtab!=='garcons')+'">Resumo do dia</button><button data-a="gtab" data-v="garcons" aria-pressed="'+(V.gtab==='garcons')+'">Garçons</button></div>';
+}
+function sGarcons(){
+  var c=comissaoDia();
+  var h=segG()+'<section class="sec"><div class="kpi"><div class="k">Garçons hoje (comissão + 10%)</div><div class="v num">'+money(c.total)+'</div><div class="muted small">'+(c.aberto?'+ '+money(c.aberto)+' em mesas ainda abertas':'Conta só mesa fechada')+'</div></div></section>';
+  h+='<section class="sec"><h2>Comissão por garçom</h2>';
+  if(!c.list.length)h+='<p class="empty">Nenhum garçom cadastrado.</p>';
+  h+=c.list.map(function(e){
+    var linhas=e.linhas.map(function(l){return '<div class="sumrow"><span>'+l.qtd+'× '+esc(rotulo(l.k))+'</span><b class="num">'+money(l.total)+'</b></div>'}).join('');
+    if(e.taxa>0)linhas+='<div class="sumrow"><span>10% de '+e.nMesas+' mesa'+(e.nMesas>1?'s':'')+'</span><b class="num">'+money(e.taxa)+'</b></div>';
+    if(!linhas)linhas='<p class="muted small">Nada ainda hoje.</p>';
+    return '<div class="card"><div class="totalbar"><strong style="font:800 22px var(--f-display)">'+esc(e.nome)+'</strong><b class="num" style="font-size:26px">'+money(e.total)+'</b></div>'+linhas+(garcom(e.id)?'<button class="btn sm block" style="margin-top:10px" data-a="g-edit" data-g="'+e.id+'">Editar nome e valores</button>':'')+'</div>';
+  }).join('');
+  h+='<button class="btn block" data-a="g-edit" data-g="new">+ Novo garçom</button></section>';
+  return{top:topTab('Gestão',new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})),main:h,foot:navHTML()};
+}
 function sHoje(){
+  if(V.gtab==='garcons')return sGarcons();
   var r=resumoDia(),al=alertas(),ab=abertas(),totalAb=ab.reduce(function(a,m){return a+sub(m)},0),fe=fechadas();
-  var h='<section class="sec"><div class="kpi"><div class="k">Vendido (mesas fechadas)</div><div class="v num">'+money(r.total)+'</div><div class="muted small">'+r.nMesas+' mesa(s) fechada(s)</div></div>'+
+  var h=segG()+'<section class="sec"><div class="kpi"><div class="k">Vendido (mesas fechadas)</div><div class="v num">'+money(r.total)+'</div><div class="muted small">'+r.nMesas+' mesa(s) fechada(s)</div></div>'+
     '<div class="grid2"><div class="kpi"><div class="k">Taxa de 10%</div><div class="v sm num">'+money(r.taxa)+'</div></div><div class="kpi"><div class="k">Abertas agora</div><div class="v sm num">'+ab.length+'</div><div class="muted small num">'+money(totalAb)+'</div></div></div></section>';
   h+='<section class="sec"><h2>Por forma de pagamento</h2>';
   var formas=Object.keys(r.porForma);
@@ -646,7 +724,7 @@ function sHoje(){
   var todas=ab.concat(fe);
   h+=todas.length?todas.map(function(m){
     var o=V.open['m'+m.id];
-    return '<button class="row tap" data-a="expand" data-k="m'+m.id+'"><div class="grow"><strong>Mesa '+esc(m.nome)+'</strong><div class="muted small">'+(m.status==='aberta'?'aberta há '+ago(m.abertaTs):esc(m.pagamento))+'</div></div><b class="num">'+money(m.status==='aberta'?sub(m):m.total)+'</b></button>'+(o?'<div class="card">'+linhasHTML(m)+'</div>':'');
+    return '<button class="row tap" data-a="expand" data-k="m'+m.id+'"><div class="grow"><strong>Mesa '+esc(m.nome)+'</strong><div class="muted small">'+(m.status==='aberta'?'aberta há '+ago(m.abertaTs):esc(m.pagamento))+(gNome(m)?' · '+esc(gNome(m)):'')+'</div></div><b class="num">'+money(m.status==='aberta'?sub(m):m.total)+'</b></button>'+(o?'<div class="card">'+linhasHTML(m)+'</div>':'');
   }).join(''):'<p class="empty">Nenhuma mesa ainda.</p>';
   h+='</section><section class="sec"><h2>Dias anteriores</h2>';
   var dias=Object.keys(M.dias).map(function(k){return M.dias[k]}).sort(function(a,b){return b.ts-a.ts});
@@ -656,6 +734,7 @@ function sHoje(){
       var pf=d.porForma||{};
       det='<div class="card"><div class="sumrow"><span>Mesas</span><b>'+d.nMesas+'</b></div><div class="sumrow"><span>Taxa de 10%</span><b class="num">'+money(d.taxa)+'</b></div>'+
         Object.keys(pf).map(function(f){return '<div class="sumrow"><span>'+esc(f)+'</span><b class="num">'+money(pf[f])+'</b></div>'}).join('')+
+        (d.garcons||[]).map(function(g){return '<div class="sumrow"><span>Garçom '+esc(g.nome)+'</span><b class="num">'+money(g.total)+'</b></div>'}).join('')+
         (d.top||[]).map(function(t){return '<div class="sumrow"><span>'+esc(t.nome)+'</span><b>'+t.qtd+' un.</b></div>'}).join('')+
         (d.estoque&&d.estoque.length?'<p class="muted small" style="margin-top:8px">Sobrou: '+d.estoque.map(function(e){return esc(e.nome)+' '+e.qtd}).join(' · ')+'</p>':'')+
         (d.abertas&&d.abertas.length?'<p class="warn" style="margin-top:8px">Ficaram abertas: '+d.abertas.map(esc).join(', ')+'</p>':'')+
@@ -666,13 +745,29 @@ function sHoje(){
   h+='</section><section class="sec"><h2>Itens tirados das mesas</h2>';
   h+=M.log.length?M.log.slice(0,15).map(function(c){return '<div class="alert"><span><b>Mesa '+esc(c.mesa)+':</b> '+esc(c.item)+' ('+money(c.valor)+') · '+esc(c.motivo)+' · '+ago(c.ts)+' atrás</span></div>'}).join(''):'<p class="empty">Nada foi tirado. Quando alguém tirar um item, aparece aqui.</p>';
   h+='</section><section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><button class="btn block" data-a="logout">Sair da conta</button></section>';
-  return{top:topTab('Hoje',new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})),main:h,foot:navHTML()};
+  return{top:topTab('Gestão',new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})),main:h,foot:navHTML()};
 }
 
 /* ---------- modais ---------- */
 function modalHTML(){
   var M2=V.modal;
-  if(M2.type==='novamesa')return '<div class="sheet"><h2>Nova mesa</h2><label class="f"><span>Número ou nome da mesa</span><input id="f-mesa" inputmode="text" autocomplete="off" placeholder="Ex.: 43"></label><div class="btns"><button class="btn" data-a="x">Cancelar</button><button class="btn primary" data-primary data-a="criar-mesa">Abrir mesa</button></div></div>';
+  if(M2.type==='novamesa'){
+    var gl=[['','Sem garçom']].concat(M.garcons.map(function(g){return[g.id,g.nome]}));
+    var gh=M.garcons.length?'<label class="f"><span>Garçom da mesa</span></label><div class="chips">'+gl.map(function(t){return '<button class="chipbtn" data-a="nm-g" data-v="'+esc(t[0])+'" aria-pressed="'+((M2.g||'')===t[0])+'">'+esc(t[1])+'</button>'}).join('')+'</div>':'';
+    return '<div class="sheet"><h2>Nova mesa</h2><label class="f"><span>Número ou nome da mesa</span><input id="f-mesa" inputmode="text" autocomplete="off" placeholder="Ex.: 43" value="'+esc(M2.nome||'')+'"></label>'+gh+'<div class="btns"><button class="btn" data-a="x">Cancelar</button><button class="btn primary" data-primary data-a="criar-mesa">Abrir mesa</button></div></div>';
+  }
+  if(M2.type==='gmesa'){
+    var gm=mesaPor(V.mesaId),gl2=[['','Sem garçom']].concat(M.garcons.map(function(g){return[g.id,g.nome]}));
+    return '<div class="sheet"><h2>Garçom da mesa</h2><div class="pays">'+gl2.map(function(t){return '<button class="btn big" data-a="gmesa-ok" data-v="'+esc(t[0])+'" aria-pressed="'+((gm&&gm.garcomId||'')===t[0])+'">'+esc(t[1])+'</button>'}).join('')+'</div><div class="btns"><button class="btn" data-a="x">Voltar</button></div></div>';
+  }
+  if(M2.type==='garcom'){
+    var novoG=M2.id==='new',gg2=novoG?{nome:'',regras:{}}:(garcom(M2.id)||{nome:'',regras:{}});
+    return '<div class="sheet"><h2>'+(novoG?'Novo garçom':'Editar garçom')+'</h2><label class="f"><span>Nome</span><input id="g-nome" value="'+esc(gg2.nome)+'"></label><p class="muted small" style="margin-top:14px">Quanto ele ganha por unidade vendida (R$)</p>'+
+      REGRAS.map(function(r){return '<label class="f"><span>'+r[1]+'</span><input id="g-r-'+r[0]+'" inputmode="decimal" value="'+esc(String((gg2.regras&&gg2.regras[r[0]])||0).replace('.',','))+'"></label>'}).join('')+
+      '<p class="muted small" style="margin-top:10px">Mudar os valores vale só para as próximas mesas fechadas.</p><div class="btns"><button class="btn" data-a="x">Cancelar</button><button class="btn primary" data-primary data-a="g-ok">Salvar</button></div>'+
+      (novoG?'':'<button class="btn danger block" style="margin-top:10px" data-a="g-del">Remover garçom</button>')+'</div>';
+  }
+  if(M2.type==='gdel'){var gx=garcom(M2.id);return '<div class="sheet"><h2>Remover '+esc(gx?gx.nome:'garçom')+'?</h2><p class="muted">As comissões já fechadas continuam no histórico. As mesas abertas dele deixam de contar comissão.</p><div class="btns"><button class="btn" data-a="x">Cancelar</button><button class="btn danger" data-a="g-del-ok">Sim, remover</button></div></div>'}
   if(M2.type==='motivo')return '<div class="sheet"><h2>Por que tirar?</h2><div class="pays">'+MOTIVOS.map(function(x){return '<button class="btn big" data-a="motivo-ok" data-v="'+x[0]+'">'+x[1]+'</button>'}).join('')+'</div><div class="btns"><button class="btn" data-a="x">Voltar</button></div></div>';
   if(M2.type==='passar'){
     var outras=abertas().filter(function(m){return m.id!==M2.m});
@@ -705,6 +800,7 @@ function modalHTML(){
     h+='<div class="card"><div class="totalbar"><span class="muted">Total vendido</span><b class="num">'+money(r.total)+'</b></div></div><div class="card" style="margin-top:10px">'+
       '<div class="sumrow"><span>Mesas fechadas</span><b>'+r.nMesas+'</b></div><div class="sumrow"><span>Taxa de 10%</span><b class="num">'+money(r.taxa)+'</b></div>'+
       Object.keys(r.porForma).map(function(f){return '<div class="sumrow"><span>'+esc(f)+'</span><b class="num">'+money(r.porForma[f])+'</b></div>'}).join('')+'</div>';
+    if(r.garcons.total>0)h+='<div class="card" style="margin-top:10px"><h2 style="margin-bottom:6px">Garçons (comissão + 10%)</h2>'+r.garcons.list.filter(function(g){return g.total>0}).map(function(g){return '<div class="sumrow"><span>'+esc(g.nome)+'</span><b class="num">'+money(g.total)+'</b></div>'}).join('')+'<div class="sumrow"><span class="muted">Total</span><b class="num">'+money(r.garcons.total)+'</b></div></div>';
     if(r.top.length)h+='<div class="card" style="margin-top:10px"><h2 style="margin-bottom:6px">Mais vendidos</h2>'+r.top.map(function(t){return '<div class="sumrow"><span>'+esc(t.nome)+'</span><b>'+t.qtd+' un.</b></div>'}).join('')+'</div>';
     var est=menuList().filter(function(x){return x.estoque});
     if(est.length)h+='<div class="card" style="margin-top:10px"><h2 style="margin-bottom:6px">Restam no estoque</h2>'+est.map(function(x){var q=restam(x.id);return '<div class="sumrow"><span>'+esc(x.nome)+'</span><b style="color:'+(q<=(x.min||0)?'var(--amber)':'inherit')+'">'+q+'</b></div>'}).join('')+'</div>';
@@ -737,7 +833,7 @@ function render(){
     r=V.mesaId?(V.fechando?sFechar():sMesa()):({mesas:sMesas,fila:sFila,estoque:sEstoque,cardapio:sCardapio,hoje:sHoje}[V.tab])();
     if(canWrite===false)r.main='<p class="warn">Você só pode ver. Para lançar pedidos, peça ao dono acesso de editor.</p>'+r.main;
   }
-  var key=[V.fatal,V.tab,V.mesaId,V.mesaTab,V.fechando,ready.menu&&ready.mesas&&ready.estoque].join('|');
+  var key=[V.fatal,V.tab,V.gtab,V.mesaId,V.mesaTab,V.fechando,ready.menu&&ready.mesas&&ready.estoque].join('|');
   $('#top').innerHTML=r.top;
   $('#main').innerHTML=r.main;
   $('#foot').innerHTML=r.foot;
@@ -786,12 +882,21 @@ document.addEventListener('click',function(e){
     case 'reload':location.reload();return;
     case 'logout':if(AUTH)AUTH.signOut().then(function(){location.reload()},function(){location.reload()});return;
     case 'tab':V.tab=d.v;break;
-    case 'nova-mesa':V.modal={type:'novamesa'};break;
+    case 'nova-mesa':V.modal={type:'novamesa',g:V.lastG||''};break;
+    case 'nm-g':V.modal={type:'novamesa',nome:val('f-mesa'),g:d.v};break;
+    case 'gtab':V.gtab=d.v;break;
+    case 'g-edit':V.modal={type:'garcom',id:d.g};break;
+    case 'g-ok':if(saveGarcom())V.modal=null;else return;break;
+    case 'g-del':V.modal={type:'gdel',id:V.modal.id};break;
+    case 'g-del-ok':var gid2=V.modal.id;M.garcons=M.garcons.filter(function(g){return g.id!==gid2});saveGarcons();V.modal=null;toast('Garçom removido');break;
+    case 'gmesa':V.modal={type:'gmesa'};break;
+    case 'gmesa-ok':m=mesaPor(V.mesaId);var gsel=garcom(d.v);m.garcomId=gsel?gsel.id:'';m.garcomNome=gsel?gsel.nome:'';V.lastG=m.garcomId;saveMesa(m);V.modal=null;break;
     case 'criar-mesa':
       var nome=val('f-mesa').trim();
       if(!nome){toast('Digite o número da mesa');return}
       if(abertas().some(function(x){return x.nome.toLowerCase()===nome.toLowerCase()})){toast('A mesa '+nome+' já está aberta');return}
-      var nm={id:gid('m'),nome:nome,abertaTs:now(),status:'aberta',mais10:true,divide:1,itens:[],baixas:[]};
+      var gsel2=garcom(V.modal.g||'');V.lastG=gsel2?gsel2.id:'';
+      var nm={id:gid('m'),nome:nome,abertaTs:now(),status:'aberta',mais10:true,divide:1,itens:[],baixas:[],garcomId:gsel2?gsel2.id:'',garcomNome:gsel2?gsel2.nome:''};
       M.mesas[nm.id]=nm;saveMesa(nm);V.mesaId=nm.id;V.mesaTab='add';V.modal=null;break;
     case 'abrir-mesa':V.mesaId=d.m;V.mesaTab='add';V.fechando=false;break;
     case 'voltar':V.mesaId=null;V.fechando=false;V.pay=null;break;
@@ -860,6 +965,12 @@ function startApp(){
   listen('mesas',DB.collection('mesas'),function(s){mergeColl('mesas',s)});
   listen('estoque',DB.collection('estoque'),function(s){mergeColl('estoque',s)});
   listen('dias',DB.collection('dias').orderBy('ts','desc').limit(60),function(s){mergeColl('dias',s)});
+  DB.doc('config/garcons').onSnapshot(function(s){
+    if(pend['config/garcons'])return;
+    var d=s.exists?s.data():null;
+    if(d&&d.list)M.garcons=clone(d.list);
+    rq();
+  },function(){});
   DB.doc('log/cancel').onSnapshot(function(s){
     if(pend['log/cancel'])return;
     var d=s.exists?s.data():null;M.log=(d&&d.list)?clone(d.list):[];rq();
