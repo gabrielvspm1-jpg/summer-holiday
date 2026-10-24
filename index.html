@@ -299,7 +299,7 @@ function ago(ts){
 
 /* ---------- dados (guardados na conta, iguais em todos os celulares) ---------- */
 var DB=null,canWrite=null,AUTH=null,USER=null;
-var M={menu:{},estoque:{},mesas:{},dias:{},log:[],garcons:[{id:'g1',nome:'Pedro',regras:{petisco:30,p2:50,p3:0,p4:60,p5:0,p6:80}}]};
+var M={menu:{},estoque:{},mesas:{},dias:{},despesas:{},log:[],garcons:[{id:'g1',nome:'Pedro',regras:{petisco:30,p2:50,p3:0,p4:60,p5:0,p6:80}}]};
 var ready={menu:false,mesas:false,estoque:false};
 var V={tab:'mesas',mesaId:null,mesaTab:'add',cat:'top',fechando:false,open:{},modal:null,pay:null,fatal:null,slow:false,gtab:'resumo',lastG:''};
 var pend={},net={offline:false,fail:false};
@@ -491,6 +491,30 @@ function saveGarcom(){
   if(g){g.nome=nome;g.regras=regras}else M.garcons.push({id:gid('g'),nome:nome,regras:regras});
   saveGarcons();toast('Garçom salvo');return true;
 }
+/* ---------- despesas do dia ---------- */
+var DESP_SUG=['Gelo','Carvão','Gás','Compras','Diária chapeiro','Diária ajudante','Limpeza','Transporte','Outro'];
+function saveDesp(id){saveDoc('despesas/'+id,function(){return M.despesas[id]?clone(M.despesas[id]):null})}
+function despesasDia(){
+  var l=Object.keys(M.despesas).map(function(k){return M.despesas[k]}).sort(function(a,b){return a.ts-b.ts});
+  return{list:l,total:round2(l.reduce(function(a,d){return a+(d.valor||0)},0))};
+}
+function lastDesp(){try{return JSON.parse(localStorage.getItem('shp-desp-last')||'{}')||{}}catch(e){return {}}}
+function rememberDesp(desc,v){try{var o=lastDesp();o[desc.toLowerCase()]=v;localStorage.setItem('shp-desp-last',JSON.stringify(o))}catch(e){}}
+function saveDespForm(){
+  var desc=val('f-desc').trim(),v=parseFloat(val('f-valor').replace(',','.'));
+  if(!desc){toast('Diga com o que foi o gasto');return false}
+  if(isNaN(v)||v<=0){toast('Digite o valor');return false}
+  var id=gid('x');M.despesas[id]={id:id,ts:now(),desc:desc,valor:round2(v)};
+  saveDesp(id);rememberDesp(desc,round2(v));toast('Despesa salva · '+money(v));return true;
+}
+function resultadoHTML(r,titulo){
+  var liq=r.liquido,neg=liq<0;
+  return '<div class="card"><h2 style="margin-bottom:6px">'+titulo+'</h2>'+
+    '<div class="sumrow"><span>Bruto (vendido)</span><b class="num">'+money(r.total)+'</b></div>'+
+    '<div class="sumrow"><span>− Garçons (comissão + 10%)</span><b class="num">'+money(r.garcons.total)+'</b></div>'+
+    '<div class="sumrow"><span>− Despesas</span><b class="num">'+money(r.desp.total)+'</b></div>'+
+    '<div class="totalbar" style="margin-top:8px"><span class="muted">Líquido</span><b class="num" style="font-size:30px;color:'+(neg?'var(--danger)':'var(--ok)')+'">'+money(liq)+'</b></div></div>';
+}
 function resumoDia(){
   var f=fechadas(),porForma={},top={},total=0,taxa=0;
   f.forEach(function(m){
@@ -498,9 +522,11 @@ function resumoDia(){
     porForma[m.pagamento]=(porForma[m.pagamento]||0)+m.total;
     m.itens.forEach(function(l){top[l.nome]=(top[l.nome]||0)+l.qtd});
   });
-  return{total:round2(total),taxa:round2(taxa),nMesas:f.length,porForma:porForma,
+  var o={total:round2(total),taxa:round2(taxa),nMesas:f.length,porForma:porForma,
     top:Object.keys(top).map(function(k){return{nome:k,qtd:top[k]}}).sort(function(a,b){return b.qtd-a.qtd}).slice(0,5),
-    abertas:abertas(),garcons:comissaoDia()};
+    abertas:abertas(),garcons:comissaoDia(),desp:despesasDia()};
+  o.liquido=round2(o.total-o.garcons.total-o.desp.total);
+  return o;
 }
 async function fecharDia(){
   var r=resumoDia(),dia=gid('d'),its=menuList().filter(function(x){return x.estoque});
@@ -509,14 +535,16 @@ async function fecharDia(){
   V.modal=null;toast('Fechando o dia…');
   var ok=await writeNow('dias/'+dia,{ts:now(),total:r.total,taxa:r.taxa,nMesas:r.nMesas,porForma:r.porForma,top:r.top,
     estoque:snap.map(function(s){return{nome:s.nome,qtd:s.qtd}}),abertas:r.abertas.map(function(m){return m.nome}),
-    garcons:r.garcons.list.filter(function(g){return g.total>0}).map(function(g){return{nome:g.nome,total:g.total,com:g.com,taxa:g.taxa,linhas:g.linhas.map(function(l){return{k:l.k,qtd:l.qtd,total:l.total}})}})});
+    garcons:r.garcons.list.filter(function(g){return g.total>0}).map(function(g){return{nome:g.nome,total:g.total,com:g.com,taxa:g.taxa,linhas:g.linhas.map(function(l){return{k:l.k,qtd:l.qtd,total:l.total}})}}),
+    garconsTotal:r.garcons.total,despesas:r.desp.list.map(function(d){return{desc:d.desc,valor:d.valor}}),despesasTotal:r.desp.total,liquido:r.liquido});
   if(!ok){toast('Não consegui fechar o dia. Tente de novo.');return}
   for(var i=0;i<snap.length;i++){
     var e=M.estoque[snap[i].id]||{};
     await writeNow('estoque/'+snap[i].id,{base:snap[i].qtd,baseTs:now(),contagem:e.contagem||null});
   }
   for(var j=0;j<f.length;j++)await writeNow('mesas/'+f[j].id,null);
-  toast('Dia fechado · '+money(r.total));
+  for(var k=0;k<r.desp.list.length;k++){await writeNow('despesas/'+r.desp.list[k].id,null)}
+  toast('Dia fechado · líquido '+money(r.liquido));
 }
 async function limparTeste(){
   V.modal=null;toast('Limpando…');
@@ -712,6 +740,10 @@ function sHoje(){
   var r=resumoDia(),al=alertas(),ab=abertas(),totalAb=ab.reduce(function(a,m){return a+sub(m)},0),fe=fechadas();
   var h=segG()+'<section class="sec"><div class="kpi"><div class="k">Vendido (mesas fechadas)</div><div class="v num">'+money(r.total)+'</div><div class="muted small">'+r.nMesas+' mesa(s) fechada(s)</div></div>'+
     '<div class="grid2"><div class="kpi"><div class="k">Taxa de 10%</div><div class="v sm num">'+money(r.taxa)+'</div></div><div class="kpi"><div class="k">Abertas agora</div><div class="v sm num">'+ab.length+'</div><div class="muted small num">'+money(totalAb)+'</div></div></div></section>';
+  h+='<section class="sec">'+resultadoHTML(r,'Resultado do dia')+'</section>';
+  h+='<section class="sec"><h2>Despesas do dia <span class="count">'+r.desp.list.length+'</span></h2>';
+  h+=r.desp.list.length?r.desp.list.map(function(d){return '<div class="row"><div class="grow"><strong>'+esc(d.desc)+'</strong><div class="muted small">'+new Date(d.ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</div></div><b class="num">'+money(d.valor)+'</b><button class="btn sm danger" data-a="desp-del" data-d="'+d.id+'" aria-label="Apagar despesa">Apagar</button></div>'}).join(''):'<p class="empty">Nenhum gasto lançado. Lance o que você gastou para abrir o quiosque.</p>';
+  h+='<button class="btn primary block" data-a="desp-novo">+ Lançar despesa</button></section>';
   h+='<section class="sec"><h2>Por forma de pagamento</h2>';
   var formas=Object.keys(r.porForma);
   h+=formas.length?'<div class="bars">'+formas.sort(function(a,b){return r.porForma[b]-r.porForma[a]}).map(function(f){
@@ -732,7 +764,7 @@ function sHoje(){
     var o=V.open[d.id],dt=new Date(d.ts).toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'}),det='';
     if(o){
       var pf=d.porForma||{};
-      det='<div class="card"><div class="sumrow"><span>Mesas</span><b>'+d.nMesas+'</b></div><div class="sumrow"><span>Taxa de 10%</span><b class="num">'+money(d.taxa)+'</b></div>'+
+      det='<div class="card">'+(d.liquido!=null?'<div class="sumrow"><span>Bruto</span><b class="num">'+money(d.total)+'</b></div><div class="sumrow"><span>− Garçons</span><b class="num">'+money(d.garconsTotal||0)+'</b></div>'+(d.despesas||[]).map(function(x){return '<div class="sumrow"><span>− '+esc(x.desc)+'</span><b class="num">'+money(x.valor)+'</b></div>'}).join('')+'<div class="sumrow"><span><b>Líquido</b></span><b class="num">'+money(d.liquido)+'</b></div><hr style="border:0;border-top:1px solid var(--line);margin:8px 0">':'')+'<div class="sumrow"><span>Mesas</span><b>'+d.nMesas+'</b></div><div class="sumrow"><span>Taxa de 10%</span><b class="num">'+money(d.taxa)+'</b></div>'+
         Object.keys(pf).map(function(f){return '<div class="sumrow"><span>'+esc(f)+'</span><b class="num">'+money(pf[f])+'</b></div>'}).join('')+
         (d.garcons||[]).map(function(g){return '<div class="sumrow"><span>Garçom '+esc(g.nome)+'</span><b class="num">'+money(g.total)+'</b></div>'}).join('')+
         (d.top||[]).map(function(t){return '<div class="sumrow"><span>'+esc(t.nome)+'</span><b>'+t.qtd+' un.</b></div>'}).join('')+
@@ -740,7 +772,7 @@ function sHoje(){
         (d.abertas&&d.abertas.length?'<p class="warn" style="margin-top:8px">Ficaram abertas: '+d.abertas.map(esc).join(', ')+'</p>':'')+
         '<p class="muted small" style="margin-top:8px">Dia fechado: só leitura.</p></div>';
     }
-    return '<button class="row tap" data-a="expand" data-k="'+d.id+'"><div class="grow"><strong style="text-transform:capitalize">'+esc(dt)+'</strong></div><b class="num">'+money(d.total)+'</b></button>'+det;
+    return '<button class="row tap" data-a="expand" data-k="'+d.id+'"><div class="grow"><strong style="text-transform:capitalize">'+esc(dt)+'</strong></div><span style="text-align:right"><b class="num">'+money(d.total)+'</b>'+(d.liquido!=null?'<div class="muted small">líquido '+money(d.liquido)+'</div>':'')+'</span></button>'+det;
   }).join(''):'<p class="empty">Nenhum dia fechado ainda.</p>';
   h+='</section><section class="sec"><h2>Itens tirados das mesas</h2>';
   h+=M.log.length?M.log.slice(0,15).map(function(c){return '<div class="alert"><span><b>Mesa '+esc(c.mesa)+':</b> '+esc(c.item)+' ('+money(c.valor)+') · '+esc(c.motivo)+' · '+ago(c.ts)+' atrás</span></div>'}).join(''):'<p class="empty">Nada foi tirado. Quando alguém tirar um item, aparece aqui.</p>';
@@ -767,6 +799,10 @@ function modalHTML(){
       '<p class="muted small" style="margin-top:10px">Mudar os valores vale só para as próximas mesas fechadas.</p><div class="btns"><button class="btn" data-a="x">Cancelar</button><button class="btn primary" data-primary data-a="g-ok">Salvar</button></div>'+
       (novoG?'':'<button class="btn danger block" style="margin-top:10px" data-a="g-del">Remover garçom</button>')+'</div>';
   }
+  if(M2.type==='desp'){
+    return '<div class="sheet"><h2>Lançar despesa</h2><div class="chips" style="margin-bottom:8px">'+DESP_SUG.map(function(n){return '<button class="chipbtn" data-a="desp-chip" data-v="'+esc(n)+'">'+esc(n)+'</button>'}).join('')+'</div><label class="f"><span>Com o quê</span><input id="f-desc" placeholder="Ex.: gelo"></label><label class="f"><span>Valor (R$)</span><input id="f-valor" inputmode="decimal" placeholder="0,00"></label><div class="btns"><button class="btn" data-a="x">Cancelar</button><button class="btn primary" data-primary data-a="desp-ok">Salvar</button></div></div>';
+  }
+  if(M2.type==='ddel'){var dx=M.despesas[M2.id];return '<div class="sheet"><h2>Apagar despesa?</h2><p class="muted">'+(dx?esc(dx.desc)+' · '+money(dx.valor):'')+'</p><div class="btns"><button class="btn" data-a="x">Voltar</button><button class="btn danger" data-a="desp-del-ok">Sim, apagar</button></div></div>'}
   if(M2.type==='gdel'){var gx=garcom(M2.id);return '<div class="sheet"><h2>Remover '+esc(gx?gx.nome:'garçom')+'?</h2><p class="muted">As comissões já fechadas continuam no histórico. As mesas abertas dele deixam de contar comissão.</p><div class="btns"><button class="btn" data-a="x">Cancelar</button><button class="btn danger" data-a="g-del-ok">Sim, remover</button></div></div>'}
   if(M2.type==='motivo')return '<div class="sheet"><h2>Por que tirar?</h2><div class="pays">'+MOTIVOS.map(function(x){return '<button class="btn big" data-a="motivo-ok" data-v="'+x[0]+'">'+x[1]+'</button>'}).join('')+'</div><div class="btns"><button class="btn" data-a="x">Voltar</button></div></div>';
   if(M2.type==='passar'){
@@ -800,6 +836,9 @@ function modalHTML(){
     h+='<div class="card"><div class="totalbar"><span class="muted">Total vendido</span><b class="num">'+money(r.total)+'</b></div></div><div class="card" style="margin-top:10px">'+
       '<div class="sumrow"><span>Mesas fechadas</span><b>'+r.nMesas+'</b></div><div class="sumrow"><span>Taxa de 10%</span><b class="num">'+money(r.taxa)+'</b></div>'+
       Object.keys(r.porForma).map(function(f){return '<div class="sumrow"><span>'+esc(f)+'</span><b class="num">'+money(r.porForma[f])+'</b></div>'}).join('')+'</div>';
+    h+='<div style="margin-top:10px">'+resultadoHTML(r,'Resultado')+'</div>';
+    if(r.desp.list.length)h+='<div class="card" style="margin-top:10px"><h2 style="margin-bottom:6px">Despesas</h2>'+r.desp.list.map(function(d){return '<div class="sumrow"><span>'+esc(d.desc)+'</span><b class="num">'+money(d.valor)+'</b></div>'}).join('')+'</div>';
+    else h+='<p class="warn" style="margin-top:10px">Nenhuma despesa lançada hoje. Se gastou com gelo, diária ou compras, toque em Voltar e lance antes de fechar.</p>';
     if(r.garcons.total>0)h+='<div class="card" style="margin-top:10px"><h2 style="margin-bottom:6px">Garçons (comissão + 10%)</h2>'+r.garcons.list.filter(function(g){return g.total>0}).map(function(g){return '<div class="sumrow"><span>'+esc(g.nome)+'</span><b class="num">'+money(g.total)+'</b></div>'}).join('')+'<div class="sumrow"><span class="muted">Total</span><b class="num">'+money(r.garcons.total)+'</b></div></div>';
     if(r.top.length)h+='<div class="card" style="margin-top:10px"><h2 style="margin-bottom:6px">Mais vendidos</h2>'+r.top.map(function(t){return '<div class="sumrow"><span>'+esc(t.nome)+'</span><b>'+t.qtd+' un.</b></div>'}).join('')+'</div>';
     var est=menuList().filter(function(x){return x.estoque});
@@ -816,7 +855,7 @@ function renderModal(){
   var el=$('#modal');
   if(!V.modal){el.hidden=true;el.innerHTML='';return}
   el.hidden=false;el.innerHTML=modalHTML();
-  if(V.modal.type==='novamesa'||V.modal.type==='estoque'||V.modal.type==='item'){
+  if(V.modal.type==='novamesa'||V.modal.type==='estoque'||V.modal.type==='item'||V.modal.type==='desp'){
     var i=el.querySelector('input,select');if(i)setTimeout(function(){i.focus()},60);
   }
 }
@@ -927,6 +966,11 @@ document.addEventListener('click',function(e){
     case 'conf':V.modal={type:'confirm'};break;
     case 'conf-ok':limparTeste().then(rq);break;
     case 'x':V.modal=null;break;
+    case 'desp-novo':V.modal={type:'desp'};break;
+    case 'desp-chip':var di=document.getElementById('f-desc'),dv=document.getElementById('f-valor');if(di){di.value=d.v;var lv=lastDesp()[d.v.toLowerCase()];if(dv&&lv&&!dv.value)dv.value=String(lv).replace('.',',');(dv||di).focus()}return;
+    case 'desp-ok':if(saveDespForm())V.modal=null;else return;break;
+    case 'desp-del':V.modal={type:'ddel',id:d.d};break;
+    case 'desp-del-ok':var xid=V.modal.id;delete M.despesas[xid];saveDesp(xid);V.modal=null;toast('Despesa apagada');break;
   }
   render();
 });
@@ -965,6 +1009,7 @@ function startApp(){
   listen('mesas',DB.collection('mesas'),function(s){mergeColl('mesas',s)});
   listen('estoque',DB.collection('estoque'),function(s){mergeColl('estoque',s)});
   listen('dias',DB.collection('dias').orderBy('ts','desc').limit(60),function(s){mergeColl('dias',s)});
+  listen('despesas',DB.collection('despesas'),function(s){mergeColl('despesas',s)});
   DB.doc('config/garcons').onSnapshot(function(s){
     if(pend['config/garcons'])return;
     var d=s.exists?s.data():null;
