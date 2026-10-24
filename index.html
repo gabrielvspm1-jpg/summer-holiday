@@ -492,27 +492,25 @@ function saveGarcom(){
   saveGarcons();toast('Garçom salvo');return true;
 }
 /* ---------- despesas do dia ---------- */
-var DESP_SUG=['Gelo','Carvão','Gás','Compras','Diária chapeiro','Diária ajudante','Limpeza','Transporte','Outro'];
 function saveDesp(id){saveDoc('despesas/'+id,function(){return M.despesas[id]?clone(M.despesas[id]):null})}
 function despesasDia(){
   var l=Object.keys(M.despesas).map(function(k){return M.despesas[k]}).sort(function(a,b){return a.ts-b.ts});
-  return{list:l,total:round2(l.reduce(function(a,d){return a+(d.valor||0)},0))};
+  var di=round2(l.filter(function(d){return d.tipo==='diaria'}).reduce(function(a,d){return a+(d.valor||0)},0)),tot=round2(l.reduce(function(a,d){return a+(d.valor||0)},0));
+  return{list:l,total:tot,diarias:di,gastos:round2(tot-di)};
 }
-function lastDesp(){try{return JSON.parse(localStorage.getItem('shp-desp-last')||'{}')||{}}catch(e){return {}}}
-function rememberDesp(desc,v){try{var o=lastDesp();o[desc.toLowerCase()]=v;localStorage.setItem('shp-desp-last',JSON.stringify(o))}catch(e){}}
 function saveDespForm(){
-  var desc=val('f-desc').trim(),v=parseFloat(val('f-valor').replace(',','.'));
-  if(!desc){toast('Diga com o que foi o gasto');return false}
+  var tipo=V.modal.tipo==='diaria'?'diaria':'gasto',nome=val('f-desc').trim(),v=parseFloat(val('f-valor').replace(',','.'));
   if(isNaN(v)||v<=0){toast('Digite o valor');return false}
-  var id=gid('x');M.despesas[id]={id:id,ts:now(),desc:desc,valor:round2(v)};
-  saveDesp(id);rememberDesp(desc,round2(v));toast('Despesa salva · '+money(v));return true;
+  var desc=tipo==='diaria'?('Diária'+(nome?' '+nome:'')):(nome||'Compras');
+  var id=gid('x');M.despesas[id]={id:id,ts:now(),desc:desc,valor:round2(v),tipo:tipo};
+  saveDesp(id);toast(desc+' · '+money(v));return true;
 }
 function resultadoHTML(r,titulo){
   var liq=r.liquido,neg=liq<0;
   return '<div class="card"><h2 style="margin-bottom:6px">'+titulo+'</h2>'+
     '<div class="sumrow"><span>Bruto (vendido)</span><b class="num">'+money(r.total)+'</b></div>'+
     '<div class="sumrow"><span>− Garçons (comissão + 10%)</span><b class="num">'+money(r.garcons.total)+'</b></div>'+
-    '<div class="sumrow"><span>− Despesas</span><b class="num">'+money(r.desp.total)+'</b></div>'+
+    '<div class="sumrow"><span>− Compras e gastos</span><b class="num">'+money(r.desp.gastos)+'</b></div><div class="sumrow"><span>− Diárias</span><b class="num">'+money(r.desp.diarias)+'</b></div>'+
     '<div class="totalbar" style="margin-top:8px"><span class="muted">Líquido</span><b class="num" style="font-size:30px;color:'+(neg?'var(--danger)':'var(--ok)')+'">'+money(liq)+'</b></div></div>';
 }
 function resumoDia(){
@@ -536,7 +534,7 @@ async function fecharDia(){
   var ok=await writeNow('dias/'+dia,{ts:now(),total:r.total,taxa:r.taxa,nMesas:r.nMesas,porForma:r.porForma,top:r.top,
     estoque:snap.map(function(s){return{nome:s.nome,qtd:s.qtd}}),abertas:r.abertas.map(function(m){return m.nome}),
     garcons:r.garcons.list.filter(function(g){return g.total>0}).map(function(g){return{nome:g.nome,total:g.total,com:g.com,taxa:g.taxa,linhas:g.linhas.map(function(l){return{k:l.k,qtd:l.qtd,total:l.total}})}}),
-    garconsTotal:r.garcons.total,despesas:r.desp.list.map(function(d){return{desc:d.desc,valor:d.valor}}),despesasTotal:r.desp.total,liquido:r.liquido});
+    garconsTotal:r.garcons.total,despesas:r.desp.list.map(function(d){return{desc:d.desc,valor:d.valor,tipo:d.tipo||'gasto'}}),despesasTotal:r.desp.total,diariasTotal:r.desp.diarias,liquido:r.liquido});
   if(!ok){toast('Não consegui fechar o dia. Tente de novo.');return}
   for(var i=0;i<snap.length;i++){
     var e=M.estoque[snap[i].id]||{};
@@ -800,7 +798,11 @@ function modalHTML(){
       (novoG?'':'<button class="btn danger block" style="margin-top:10px" data-a="g-del">Remover garçom</button>')+'</div>';
   }
   if(M2.type==='desp'){
-    return '<div class="sheet"><h2>Lançar despesa</h2><div class="chips" style="margin-bottom:8px">'+DESP_SUG.map(function(n){return '<button class="chipbtn" data-a="desp-chip" data-v="'+esc(n)+'">'+esc(n)+'</button>'}).join('')+'</div><label class="f"><span>Com o quê</span><input id="f-desc" placeholder="Ex.: gelo"></label><label class="f"><span>Valor (R$)</span><input id="f-valor" inputmode="decimal" placeholder="0,00"></label><div class="btns"><button class="btn" data-a="x">Cancelar</button><button class="btn primary" data-primary data-a="desp-ok">Salvar</button></div></div>';
+    var dd=M2.tipo==='diaria';
+    return '<div class="sheet"><h2>Lançar despesa</h2><div class="seg"><button data-a="desp-tipo" data-v="gasto" aria-pressed="'+(!dd)+'">Compras / gasto</button><button data-a="desp-tipo" data-v="diaria" aria-pressed="'+dd+'">Diária</button></div>'+
+      '<label class="f"><span>Valor (R$)</span><input id="f-valor" inputmode="decimal" placeholder="0,00" value="'+esc(M2.v||'')+'" style="font-size:28px;min-height:60px"></label>'+
+      '<label class="f"><span>'+(dd?'Nome (opcional)':'Descrição (opcional)')+'</span><input id="f-desc" placeholder="'+(dd?'Ex.: Zé':'Compras')+'" value="'+esc(M2.desc||'')+'"></label>'+
+      '<div class="btns"><button class="btn" data-a="x">Cancelar</button><button class="btn primary" data-primary data-a="desp-ok">Salvar</button></div></div>';
   }
   if(M2.type==='ddel'){var dx=M.despesas[M2.id];return '<div class="sheet"><h2>Apagar despesa?</h2><p class="muted">'+(dx?esc(dx.desc)+' · '+money(dx.valor):'')+'</p><div class="btns"><button class="btn" data-a="x">Voltar</button><button class="btn danger" data-a="desp-del-ok">Sim, apagar</button></div></div>'}
   if(M2.type==='gdel'){var gx=garcom(M2.id);return '<div class="sheet"><h2>Remover '+esc(gx?gx.nome:'garçom')+'?</h2><p class="muted">As comissões já fechadas continuam no histórico. As mesas abertas dele deixam de contar comissão.</p><div class="btns"><button class="btn" data-a="x">Cancelar</button><button class="btn danger" data-a="g-del-ok">Sim, remover</button></div></div>'}
@@ -966,8 +968,8 @@ document.addEventListener('click',function(e){
     case 'conf':V.modal={type:'confirm'};break;
     case 'conf-ok':limparTeste().then(rq);break;
     case 'x':V.modal=null;break;
-    case 'desp-novo':V.modal={type:'desp'};break;
-    case 'desp-chip':var di=document.getElementById('f-desc'),dv=document.getElementById('f-valor');if(di){di.value=d.v;var lv=lastDesp()[d.v.toLowerCase()];if(dv&&lv&&!dv.value)dv.value=String(lv).replace('.',',');(dv||di).focus()}return;
+    case 'desp-novo':V.modal={type:'desp',tipo:'gasto'};break;
+    case 'desp-tipo':V.modal={type:'desp',tipo:d.v,v:val('f-valor'),desc:val('f-desc')};break;
     case 'desp-ok':if(saveDespForm())V.modal=null;else return;break;
     case 'desp-del':V.modal={type:'ddel',id:d.d};break;
     case 'desp-del-ok':var xid=V.modal.id;delete M.despesas[xid];saveDesp(xid);V.modal=null;toast('Despesa apagada');break;
