@@ -558,11 +558,13 @@ async function fecharDia(){
 }
 async function limparTeste(){
   V.modal=null;toast('Limpando…');
-  var ms=Object.keys(M.mesas),ds=Object.keys(M.dias);
+  var ms=Object.keys(M.mesas),ds=Object.keys(M.dias),xs=Object.keys(M.despesas),es=Object.keys(M.estoque);
   for(var i=0;i<ms.length;i++)await writeNow('mesas/'+ms[i],null);
   for(var j=0;j<ds.length;j++)await writeNow('dias/'+ds[j],null);
+  for(var k=0;k<xs.length;k++)await writeNow('despesas/'+xs[k],null);
+  for(var q=0;q<es.length;q++)await writeNow('estoque/'+es[q],{base:0,baseTs:now(),contagem:null});
   await writeNow('log/cancel',{list:[]});
-  toast('Dados de teste limpos');
+  toast('Tudo limpo. Pode começar do zero.');
 }
 function alertas(){
   var a=[];
@@ -786,7 +788,7 @@ function sHoje(){
   }).join(''):'<p class="empty">Nenhum dia fechado ainda.</p>';
   h+='</section><section class="sec"><h2>Itens tirados das mesas</h2>';
   h+=M.log.length?M.log.slice(0,15).map(function(c){return '<div class="alert"><span><b>Mesa '+esc(c.mesa)+':</b> '+esc(c.item)+' ('+money(c.valor)+') · '+esc(c.motivo)+' · '+ago(c.ts)+' atrás</span></div>'}).join(''):'<p class="empty">Nada foi tirado. Quando alguém tirar um item, aparece aqui.</p>';
-  h+='</section><section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>7 · 23/10 22:40</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
+  h+='</section><section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>8 · 23/10 22:50</b></p><button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
   return{top:topTab('Gestão',new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})),main:h,foot:navHTML()};
 }
 
@@ -842,7 +844,7 @@ function modalHTML(){
       '<p class="muted small" style="margin-top:10px">Mudar o preço vale só para os próximos pedidos.</p>'+
       '<div class="btns"><button class="btn" data-a="x">Cancelar</button><button class="btn primary" data-a="item-ok">Salvar</button></div></div>';
   }
-  if(M2.type==='confirm')return '<div class="sheet"><h2>Tem certeza?</h2><p class="muted">Apaga as mesas, os dias fechados e os itens tirados que estão guardados. Mantém cardápio, preços e estoque.</p><div class="btns"><button class="btn" data-a="x">Cancelar</button><button class="btn danger" data-a="conf-ok">Sim, limpar</button></div></div>';
+  if(M2.type==='confirm')return '<div class="sheet"><h2>Limpar tudo e começar do zero?</h2><p class="muted">Apaga <b>todas as mesas</b> (abertas e fechadas), <b>todos os dias fechados</b>, as <b>despesas</b> e os itens tirados. O <b>estoque volta a zero</b>: depois você lança a compra ou conta de novo.</p><p class="muted">Fica guardado: cardápio, preços, garçons, comissões e a sua conta.</p><p class="warn">Não tem como desfazer. Para confirmar, escreva <b>LIMPAR</b> abaixo.</p><label class="f"><span>Escreva LIMPAR</span><input id="f-limpar" autocapitalize="characters" autocomplete="off"></label><div class="btns"><button class="btn" data-a="x">Cancelar</button><button class="btn danger" data-a="conf-ok">Apagar tudo</button></div></div>';
   if(M2.type==='fechardia'){
     var r=resumoDia();
     var h='<div class="sheet"><h2>Fechar o dia</h2>';
@@ -869,7 +871,7 @@ function renderModal(){
   var el=$('#modal');
   if(!V.modal){el.hidden=true;el.innerHTML='';return}
   el.hidden=false;el.innerHTML=modalHTML();
-  if(V.modal.type==='novamesa'||V.modal.type==='estoque'||V.modal.type==='item'||V.modal.type==='desp'){
+  if(V.modal.type==='novamesa'||V.modal.type==='estoque'||V.modal.type==='item'||V.modal.type==='desp'||V.modal.type==='confirm'){
     var i=el.querySelector('input,select');if(i)setTimeout(function(){i.focus()},60);
   }
 }
@@ -979,7 +981,7 @@ document.addEventListener('click',function(e){
     case 'fd':V.modal={type:'fechardia'};break;
     case 'fd-ok':fecharDia().then(rq);break;
     case 'conf':V.modal={type:'confirm'};break;
-    case 'conf-ok':limparTeste().then(rq);break;
+    case 'conf-ok':if(val('f-limpar').trim().toUpperCase()!=='LIMPAR'){toast('Escreva LIMPAR para confirmar');return}limparTeste().then(rq);break;
     case 'x':V.modal=null;break;
     case 'desp-novo':V.modal={type:'desp',tipo:'gasto'};break;
     case 'desp-tipo':var mm=V.modal,mem=mm.mem||{};mem[mm.tipo]={v:val('f-valor'),desc:val('f-desc')};V.modal={type:'desp',tipo:d.v,mem:mem,v:(mem[d.v]||{}).v||'',desc:(mem[d.v]||{}).desc||''};break;
