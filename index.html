@@ -57,6 +57,11 @@ p{margin:0}
 #top .who{display:flex;flex-direction:column;min-width:0}
 #top .who strong{font-family:var(--f-display);font-size:20px}
 .mark{width:46px;height:auto;flex:none;display:block}
+#sbar{flex:none;position:relative;padding:10px 0 0}
+#sbar input{width:100%;font:inherit;font-size:18px;min-height:52px;padding:0 48px 0 16px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--fg);-webkit-appearance:none;appearance:none}
+#sbar input:focus{outline:2px solid var(--accent);border-color:var(--accent)}
+#sbar input::-webkit-search-cancel-button{display:none}
+#q-x{position:absolute;right:4px;top:14px;width:44px;height:44px;border-radius:22px;border:0;background:transparent;color:var(--muted);font-size:28px;line-height:1}
 #main{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:16px 0 24px;-webkit-overflow-scrolling:touch}
 #foot{flex:none;padding:10px 0 12px;border-top:1px solid var(--line)}
 #foot:empty{display:none}
@@ -252,6 +257,7 @@ input[type=checkbox]{width:24px;min-height:24px;height:24px;accent-color:var(--a
 </head>
 <body>
 <header id="top"></header>
+<div id="sbar" hidden><input id="q-mesa" type="search" enterkeyhint="search" placeholder="Buscar mesa pelo número" autocomplete="off" autocorrect="off" autocapitalize="off" aria-label="Buscar mesa"><button type="button" id="q-x" hidden aria-label="Limpar busca">×</button></div>
 <main id="main"></main>
 <footer id="foot"></footer>
 <div id="toast" role="status" aria-live="polite"></div>
@@ -308,7 +314,7 @@ function ago(ts){
 var DB=null,canWrite=null,AUTH=null,USER=null;
 var M={menu:{},estoque:{},mesas:{},dias:{},despesas:{},taxistas:[],log:[],garcons:[{id:'g1',nome:'Pedro',regras:{petisco:30,p2:50,p3:0,p4:60,p5:0,p6:80}}]};
 var ready={menu:false,mesas:false,estoque:false};
-var V={tab:'mesas',mesaId:null,mesaTab:'add',cat:'top',fechando:false,open:{},modal:null,pay:null,fatal:null,slow:false,gtab:'resumo',lastG:''};
+var V={tab:'mesas',mesaId:null,mesaTab:'add',cat:'top',fechando:false,open:{},modal:null,pay:null,fatal:null,slow:false,gtab:'resumo',lastG:'',q:''};
 var pend={},net={offline:false,fail:false};
 
 /* fila guardada no proprio celular: se a internet cair e a tela recarregar, o que nao subiu ainda e enviado depois */
@@ -659,8 +665,16 @@ function sMesas(){
       return '<div class="row ready"><div class="grow"><strong>Mesa '+esc(x.m.nome)+'</strong><div>'+x.l.qtd+'× '+esc(x.l.nome)+'</div><small class="muted">pronto há '+ago(x.l.tsStatus)+'</small></div><button class="btn teal" data-a="entregar" data-m="'+x.m.id+'" data-l="'+x.l.uid+'">Entregue</button></div>';
     }).join('')+'</section>';
   }
-  h+='<section class="sec"><h2>Mesas abertas <span class="count">'+ab.length+'</span></h2>';
-  if(!ab.length)h+='<p class="empty">Nenhuma mesa aberta. Toque em Nova mesa quando o cliente chegar.</p>';
+  var total=ab.length,q=(V.q||'').trim().toLowerCase();
+  if(q){
+    ab=ab.filter(function(m){return String(m.nome).toLowerCase().indexOf(q)>=0}).sort(function(a,b){
+      function rk(m){var n=String(m.nome).toLowerCase();return n===q?0:n.indexOf(q)===0?1:2}
+      return rk(a)-rk(b)||a.nome.localeCompare(b.nome,'pt-BR',{numeric:true});
+    });
+  }
+  h+='<section class="sec"><h2>Mesas abertas <span class="count">'+(q?ab.length+' de '+total:total)+'</span></h2>';
+  if(!total)h+='<p class="empty">Nenhuma mesa aberta. Toque em Nova mesa quando o cliente chegar.</p>';
+  else if(!ab.length)h+='<p class="empty">Nenhuma mesa aberta com "'+esc(V.q.trim())+'". Confira o número ou toque em Nova mesa.</p>';
   else h+='<div class="grid2">'+ab.map(function(m){
     var np=m.itens.filter(function(l){return l.status==='pronto'}).length;
     var nf=m.itens.filter(function(l){return l.status==='novo'||l.status==='preparo'}).length;
@@ -835,7 +849,7 @@ function sHoje(){
   }).join(''):'<p class="empty">Nenhum dia fechado ainda.</p>';
   h+='</section><section class="sec"><h2>Itens tirados das mesas</h2>';
   h+=M.log.length?M.log.slice(0,15).map(function(c){return '<div class="alert"><span><b>Mesa '+esc(c.mesa)+':</b> '+esc(c.item)+' ('+money(c.valor)+') · '+esc(c.motivo)+' · '+ago(c.ts)+' atrás</span></div>'}).join(''):'<p class="empty">Nada foi tirado. Quando alguém tirar um item, aparece aqui.</p>';
-  h+='</section><section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>9 · 23/10 23:10</b></p><button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
+  h+='</section><section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>10 · 23/10 23:30</b></p><button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
   return{top:topTab('Gestão',new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})),main:h,foot:navHTML()};
 }
 
@@ -950,6 +964,18 @@ function render(){
   $('#main').innerHTML=r.main;
   $('#foot').innerHTML=r.foot;
   $('#top').style.display=r.top?'':'none';
+  var showQ=!V.fatal&&ready.menu&&ready.mesas&&ready.estoque&&V.tab==='mesas'&&!V.mesaId&&abertas().length>0;
+  var sb=document.getElementById('sbar');
+  if(sb){
+    sb.hidden=!showQ;
+    var qi=document.getElementById('q-mesa');
+    if(qi){
+      var num=abertas().every(function(m){return /^\d+$/.test(String(m.nome))});
+      var im=num?'numeric':'text';
+      if(qi.getAttribute&&qi.getAttribute('inputmode')!==im)qi.setAttribute('inputmode',im);
+      if(!showQ&&qi.value){qi.value='';V.q=''}
+    }
+  }
   if(key!==lastKey){$('#main').scrollTop=0;lastKey=key}
   renderModal();
 }
@@ -1017,7 +1043,7 @@ document.addEventListener('click',function(e){
       var gsel2=garcom(V.modal.g||'');V.lastG=gsel2?gsel2.id:'';
       var nm={id:gid('m'),nome:nome,abertaTs:now(),status:'aberta',mais10:true,divide:1,itens:[],baixas:[],garcomId:gsel2?gsel2.id:'',garcomNome:gsel2?gsel2.nome:''};
       M.mesas[nm.id]=nm;saveMesa(nm);V.mesaId=nm.id;V.mesaTab='add';V.modal=null;break;
-    case 'abrir-mesa':V.mesaId=d.m;V.mesaTab='add';V.fechando=false;break;
+    case 'abrir-mesa':V.q='';var qe=document.getElementById('q-mesa');if(qe)qe.value='';var qx=document.getElementById('q-x');if(qx)qx.hidden=true;V.mesaId=d.m;V.mesaTab='add';V.fechando=false;break;
     case 'voltar':V.mesaId=null;V.fechando=false;V.pay=null;break;
     case 'mesa-tab':V.mesaTab=d.v;break;
     case 'cat':V.cat=d.v;break;
@@ -1150,6 +1176,20 @@ function wireAuth(){
   });
   setMode('in');
 }
+(function wireBusca(){
+  var qi=document.getElementById('q-mesa'),qx=document.getElementById('q-x');
+  if(!qi)return;
+  function sync(){V.q=qi.value||'';if(qx)qx.hidden=!V.q;rq()}
+  qi.addEventListener('input',sync);
+  qi.addEventListener('keydown',function(e){
+    if(e.key!=='Enter')return;
+    var q=(qi.value||'').trim().toLowerCase();if(!q)return;
+    var hit=abertas().filter(function(m){return String(m.nome).toLowerCase()===q});
+    if(!hit.length)hit=abertas().filter(function(m){return String(m.nome).toLowerCase().indexOf(q)>=0});
+    if(hit.length===1){qi.blur&&qi.blur();qi.value='';V.q='';if(qx)qx.hidden=true;V.mesaId=hit[0].id;V.mesaTab='add';V.fechando=false;rq()}
+  });
+  if(qx)qx.addEventListener('click',function(){qi.value='';V.q='';qx.hidden=true;qi.focus&&qi.focus();rq()});
+})();
 (async function boot(){
   var cfg=window.APP_CONFIG&&window.APP_CONFIG.firebase;
   if(!window.firebase){V.fatal='sdk';render();return}
