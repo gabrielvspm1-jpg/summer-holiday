@@ -25,7 +25,6 @@ service cloud.firestore {
       allow read: if ehGarcom();
     }
 
-    // Mesas: o garçom lê só as mesas marcadas com o nome dele.
     // Mesas: garçom comum lê só as dele; acesso de caixa lê e grava todas.
     match /mesas/{id} {
       allow read: if ehGarcom() && (ehOp() || resource.data.garcomId == meuGarcomId());
@@ -35,7 +34,8 @@ service cloud.firestore {
     match /estoque/{id} {
       allow read, write: if ehOp();
     }
-    match /config/{id} {
+    // Só nomes de garçons e taxistas (sem comissões nem porcentagens).
+    match /config/equipe {
       allow read: if ehOp();
     }
     match /log/{id} {

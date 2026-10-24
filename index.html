@@ -363,6 +363,35 @@ async function writeNow(path,data){
   }
   return false;
 }
+var SEEN={},seenReady=false,SOM=null;
+function somOn(){
+  if(SOM===null){try{var v=localStorage.getItem('shp-som-v1');SOM=v===null?!GM:v==='1'}catch(e){SOM=!GM}}
+  return SOM;
+}
+function somSet(on){SOM=on;try{localStorage.setItem('shp-som-v1',on?'1':'0')}catch(e){}if(on)pedirTelaAcesa()}
+var AC=null,WL=null;
+function audioPronto(){try{var C=window.AudioContext||window.webkitAudioContext;if(C&&!AC)AC=new C();if(AC&&AC.state==='suspended')AC.resume()}catch(e){}}
+function bipe(){
+  try{
+    audioPronto();if(!AC)return;
+    [0,0.22,0.44].forEach(function(t,i){var o=AC.createOscillator(),g=AC.createGain();o.type='square';o.frequency.value=i===1?1100:880;g.gain.value=0.25;o.connect(g);g.connect(AC.destination);o.start(AC.currentTime+t);o.stop(AC.currentTime+t+0.16)});
+  }catch(e){}
+  try{if(navigator.vibrate)navigator.vibrate([300,120,300,120,300])}catch(e){}
+}
+function pedirTelaAcesa(){try{if(navigator.wakeLock&&somOn()&&!WL){navigator.wakeLock.request('screen').then(function(l){WL=l;l.addEventListener&&l.addEventListener('release',function(){WL=null})},function(){})}}catch(e){}}
+function checarNovos(snap){
+  var novos=[],abertasNow={};
+  Object.keys(M.mesas).forEach(function(k){
+    var m=M.mesas[k];if(m.status!=='aberta')return;
+    (m.itens||[]).forEach(function(l){
+      var prev=SEEN[l.uid];
+      if(seenReady&&l.status!=='entregue'&&(prev===undefined||l.qtd>prev))novos.push({mesa:m.nome,nome:l.nome});
+      SEEN[l.uid]=l.qtd;
+    });
+  });
+  if(snap&&snap.metadata&&!snap.metadata.fromCache)seenReady=true;
+  if(novos.length&&somOn()){bipe();toast('Pedido novo · Mesa '+novos[0].mesa+(novos.length>1?' (+'+(novos.length-1)+')':'')+' · '+novos[0].nome)}
+}
 function mergeColl(name,snap){
   var o={};
   snap.docs.forEach(function(d){var x=clone(d.data());x.id=d.id;o[d.id]=x});
@@ -371,6 +400,7 @@ function mergeColl(name,snap){
     if(a[0]===name){if(M[name][a[1]])o[a[1]]=M[name][a[1]];else delete o[a[1]]}
   });
   M[name]=o;
+  if(name==='mesas')checarNovos(snap);
 }
 function listen(name,query,fn){
   query.onSnapshot(function(snap){fn(snap);if(name in ready)ready[name]=true;rq()},function(e){
@@ -380,8 +410,11 @@ function listen(name,query,fn){
 function saveMesa(m){saveDoc('mesas/'+m.id,function(){return M.mesas[m.id]?clone(M.mesas[m.id]):null})}
 function saveEstoqueDoc(id){saveDoc('estoque/'+id,function(){return M.estoque[id]?clone(M.estoque[id]):null})}
 function saveMenuDoc(id){saveDoc('menu/'+id,function(){return M.menu[id]?clone(M.menu[id]):null})}
-function saveTaxistas(){saveDoc('config/taxistas',function(){return{list:clone(M.taxistas)}})}
-function saveGarcons(){saveDoc('config/garcons',function(){return{list:clone(M.garcons)}})}
+var LASTEQ='';
+function equipeData(){return{garcons:M.garcons.map(function(g){return{id:g.id,nome:g.nome,cor:gCor(g.id)}}),taxistas:M.taxistas.map(function(t){return{id:t.id,nome:t.nome}})}}
+function saveEquipe(){if(GM)return;var j=JSON.stringify(equipeData());if(j===LASTEQ)return;LASTEQ=j;saveDoc('config/equipe',function(){return equipeData()})}
+function saveTaxistas(){saveDoc('config/taxistas',function(){return{list:clone(M.taxistas)}});saveEquipe()}
+function saveGarcons(){saveDoc('config/garcons',function(){return{list:clone(M.garcons)}});saveEquipe()}
 function saveLog(){saveDoc('log/cancel',function(){return{list:M.log}})}
 
 /* ---------- regras ---------- */
@@ -416,7 +449,8 @@ function addItem(itemId){
   var it=item(itemId);if(!it)return;
   var st=it.fluxo==='direto'?'entregue':'novo';
   var l=m.itens.filter(function(x){return x.itemId===itemId&&x.status===st})[0];
-  if(l){l.qtd+=1}else{m.itens.push({uid:gid('l'),itemId:itemId,nome:it.nome,preco:it.preco,qtd:1,status:st,fluxo:it.fluxo,ts:now(),tsStatus:now()})}
+  if(l){l.qtd+=1}else{l={uid:gid('l'),itemId:itemId,nome:it.nome,preco:it.preco,qtd:1,status:st,fluxo:it.fluxo,ts:now(),tsStatus:now()};m.itens.push(l)}
+  SEEN[l.uid]=l.qtd;audioPronto();
   saveMesa(m);toast('+1 '+it.nome);
 }
 function menos(itemId){
@@ -452,12 +486,21 @@ function passar(fromId,luid,toId){
   if(ex)ex.qtd+=l.qtd;else b.itens.push(l);
   saveMesa(a);saveMesa(b);toast('Passei para a Mesa '+b.nome);
 }
+function fixComissao(m){
+  var c=calc(m);delete m.pendente;
+  var tx=taxista(m.taxistaId);if(tx)m.taxi={taxistaId:tx.id,nome:tx.nome,pct:tx.pct,base:c.total,total:taxiDe(m,tx.pct)};else delete m.taxi;
+  var gg=garcom(m.garcomId);if(gg){var cm=calcComissao(m,gg);m.comissao={garcomId:gg.id,nome:gg.nome,total:cm.total,taxa:tx?0:c.taxa,linhas:cm.linhas.map(function(l){return{k:l.k,qtd:l.qtd,valor:l.valor,total:l.total}})}}
+}
+var CFG={t:false,g:false};
+function reparaMesas(){
+  if(GM||!CFG.t||!CFG.g)return;
+  Object.keys(M.mesas).forEach(function(k){var m=M.mesas[k];if(m.status==='fechada'&&m.pendente){fixComissao(m);saveMesa(m)}});
+}
 function fecharMesa(){
   var m=mesaPor(V.mesaId);if(!m||!V.pay)return;
   var c=calc(m);
   m.status='fechada';m.pagamento=V.pay;m.total=c.total;m.fechadaTs=now();
-  var tx=taxista(m.taxistaId);if(tx)m.taxi={taxistaId:tx.id,nome:tx.nome,pct:tx.pct,base:c.total,total:taxiDe(m,tx.pct)};else delete m.taxi;
-  var gg=garcom(m.garcomId);if(gg){var cm=calcComissao(m,gg);m.comissao={garcomId:gg.id,nome:gg.nome,total:cm.total,taxa:tx?0:c.taxa,linhas:cm.linhas.map(function(l){return{k:l.k,qtd:l.qtd,valor:l.valor,total:l.total}})}}
+  if(GM)m.pendente=true;else fixComissao(m);
   V.mesaId=null;V.fechando=false;V.pay=null;
   saveMesa(m);toast('Mesa '+m.nome+' fechada · '+money(c.total));
 }
@@ -468,7 +511,7 @@ function garcom(id){return M.garcons.filter(function(g){return g.id===id})[0]}
 /* ---------- taxistas: ganham % do total da mesa (ja com os 10%); nessa mesa o garcom nao fica com os 10% ---------- */
 function taxista(id){return id?M.taxistas.filter(function(t){return t.id===id})[0]:null}
 function tNome(m){
-  if(GV())return m.status==='fechada'?(m.taxi?m.taxi.nome:''):(m.taxistaId?(m.taxistaNome||'Táxi'):'');
+  if(GV())return m.taxi?m.taxi.nome:(m.taxistaId?(m.taxistaNome||'Táxi'):'');
   if(m.status==='fechada')return m.taxi?m.taxi.nome:'';
   var t=taxista(m.taxistaId);return t?t.nome:'';
 }
@@ -594,6 +637,7 @@ function resumoDia(){
   return o;
 }
 async function fecharDia(){
+  reparaMesas();
   var r=resumoDia(),dia=gid('d'),its=menuList().filter(function(x){return x.estoque});
   var snap=its.map(function(x){return{id:x.id,nome:x.nome,qtd:restam(x.id)}});
   var f=fechadas();
@@ -746,7 +790,7 @@ function sFechar(){
   var pend2=m.itens.filter(function(l){return l.status!=='entregue'}).length;
   var h='<div class="card"><div class="sumrow"><span>Consumo</span><b class="num">'+money(c.sub)+'</b></div>'+
     '<div class="sumrow"><span>Taxa de serviço 10%</span><b class="num">'+(m.mais10?'+ '+money(c.taxa):'sem taxa')+'</b></div>'+
-    '<div class="totalbar" style="padding-top:12px"><span class="muted">Total</span><b class="num">'+money(c.total)+'</b></div></div>'+(taxista(m.taxistaId)?'<div class="card" style="margin-top:10px;border-color:#FFD23F"><div class="sumrow"><span>Táxi '+esc(taxista(m.taxistaId).nome)+' ('+taxista(m.taxistaId).pct+'%)</span><b class="num">'+money(taxiDe(m,taxista(m.taxistaId).pct))+'</b></div><p class="muted small" style="margin:6px 0 0">Os 10% desta mesa vão para o táxi. O garçom'+(gNome(m)?' '+esc(gNome(m)):'')+' fica só com a comissão dos itens.</p></div>':'')+
+    '<div class="totalbar" style="padding-top:12px"><span class="muted">Total</span><b class="num">'+money(c.total)+'</b></div></div>'+(taxista(m.taxistaId)?'<div class="card" style="margin-top:10px;border-color:#FFD23F"><div class="sumrow"><span>Táxi '+esc(taxista(m.taxistaId).nome)+(GM?'':' ('+taxista(m.taxistaId).pct+'%)')+'</span><b class="num">'+(GM?'':money(taxiDe(m,taxista(m.taxistaId).pct)))+'</b></div><p class="muted small" style="margin:6px 0 0">Os 10% desta mesa vão para o táxi. O garçom'+(gNome(m)?' '+esc(gNome(m)):'')+' fica só com a comissão dos itens.</p></div>':'')+
     '<div class="sec"><button class="toggle" data-a="toggle10" aria-pressed="'+!!m.mais10+'"><span>Taxa de serviço 10%</span><span class="sw"></span></button>'+
     '<div class="row"><div class="grow"><strong>Dividir a conta</strong>'+(n>1?'<div class="muted small num">'+money(round2(c.total/n))+' por pessoa</div>':'<div class="muted small">sem divisão</div>')+'</div><div class="stepper"><button class="btn sm" data-a="div" data-v="-1" aria-label="Menos uma pessoa">−</button><b class="num">'+n+'</b><button class="btn sm" data-a="div" data-v="1" aria-label="Mais uma pessoa">+</button></div></div></div>'+
     (pend2?'<p class="warn" style="margin-top:12px">Ainda há '+pend2+' item(ns) não entregue(s) nesta mesa.</p>':'')+
@@ -873,7 +917,7 @@ function sHoje(){
   }).join(''):'<p class="empty">Nenhum dia fechado ainda.</p>';
   h+='</section><section class="sec"><h2>Itens tirados das mesas</h2>';
   h+=M.log.length?M.log.slice(0,15).map(function(c){return '<div class="alert"><span><b>Mesa '+esc(c.mesa)+':</b> '+esc(c.item)+' ('+money(c.valor)+') · '+esc(c.motivo)+' · '+ago(c.ts)+' atrás</span></div>'}).join(''):'<p class="empty">Nada foi tirado. Quando alguém tirar um item, aparece aqui.</p>';
-  h+='</section><section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>12 · 24/10 00:40</b></p><button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
+  h+='</section><section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>13 · 24/10 01:10</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
   return{top:topTab('Gestão',new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})),main:h,foot:navHTML()};
 }
 
@@ -886,7 +930,7 @@ function modalHTML(){
     return '<div class="sheet"><h2>Nova mesa</h2><label class="f"><span>Número ou nome da mesa</span><input id="f-mesa" inputmode="text" autocomplete="off" placeholder="Ex.: 43" value="'+esc(M2.nome||'')+'"></label>'+gh+'<div class="btns"><button class="btn" data-a="x">Cancelar</button><button class="btn primary" data-primary data-a="criar-mesa">Abrir mesa</button></div></div>';
   }
   if(M2.type==='tmesa'){
-    var tm=mesaPor(V.mesaId),tl=[['','Sem táxi']].concat(M.taxistas.map(function(t){return[t.id,t.nome+' ('+t.pct+'%)']}));
+    var tm=mesaPor(V.mesaId),tl=[['','Sem táxi']].concat(M.taxistas.map(function(t){return[t.id,GM?t.nome:t.nome+' ('+t.pct+'%)']}));
     return '<div class="sheet"><h2>Mesa de taxista</h2><div class="pays">'+tl.map(function(t){return '<button class="btn big" style="'+(t[0]?'border-left:8px solid #FFD23F;color:#FFD23F':'')+'" data-a="tmesa-ok" data-v="'+esc(t[0])+'" aria-pressed="'+((tm&&tm.taxistaId||'')===t[0])+'">'+esc(t[1])+'</button>'}).join('')+'</div><p class="muted small" style="margin-top:10px">O táxi ganha a porcentagem sobre o total da mesa (já com os 10%). Nessa mesa o garçom não fica com os 10%, só com a comissão dos itens.</p><div class="btns"><button class="btn" data-a="x">Voltar</button></div></div>';
   }
   if(M2.type==='taxista'){
@@ -1019,7 +1063,7 @@ function sGHoje(){
     }
     return '<button class="row tap'+(m.status==='aberta'?'':' ')+'" style="border-left:8px solid '+(m.status==='aberta'?'var(--accent)':'var(--ok)')+'" data-a="expand" data-k="g'+m.id+'"><div class="grow"><strong>Mesa '+esc(m.nome)+'</strong><div class="muted small">'+(m.status==='aberta'?'aberta há '+ago(m.abertaTs):'fechada')+(x.taxi?' · Táxi '+esc(x.taxi):'')+'</div></div><span style="text-align:right"><b class="num">'+money(tot)+'</b><div class="small num" style="color:var(--teal)">você '+money(round2(x.com+x.taxa))+'</div></span></button>'+det;
   }).join('');
-  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>12 · 24/10 00:40</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
+  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>13 · 24/10 01:10</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
   return{top:topTab(g?g.nome:'Meu dia',new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})),main:h,foot:navG()};
 }
 function sGDias(){
@@ -1041,7 +1085,7 @@ function sGDias(){
 }
 function sContaOp(){
   var g=garcom(GM.gid);
-  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>12 · 24/10 00:40</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
+  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>13 · 24/10 01:10</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
 }
 function render(){
   var r;
@@ -1113,6 +1157,7 @@ document.addEventListener('click',function(e){
   var a=el.dataset.a,d=el.dataset,m;
   switch(a){
     case 'reload':location.reload();return;
+    case 'som':somSet(!somOn());audioPronto();if(somOn())bipe();break;
     case 'logout':if(AUTH)AUTH.signOut().then(function(){location.reload()},function(){location.reload()});return;
     case 'tab':V.tab=d.v;break;
     case 'nova-mesa':V.modal={type:'novamesa',g:V.lastG||''};break;
@@ -1207,7 +1252,7 @@ function startDono(){
     if(!seeded&&s.empty&&s.metadata&&!s.metadata.fromCache){seeded=true;seedMenu()}
     mergeColl('menu',s);
   });
-  listen('mesas',DB.collection('mesas'),function(s){mergeColl('mesas',s)});
+  listen('mesas',DB.collection('mesas'),function(s){mergeColl('mesas',s);reparaMesas()});
   listen('estoque',DB.collection('estoque'),function(s){mergeColl('estoque',s)});
   listen('dias',DB.collection('dias').orderBy('ts','desc').limit(60),function(s){mergeColl('dias',s)});
   listen('despesas',DB.collection('despesas'),function(s){mergeColl('despesas',s)});
@@ -1215,13 +1260,13 @@ function startDono(){
     if(pend['config/taxistas'])return;
     var d=s.exists?s.data():null;
     if(d&&d.list)M.taxistas=clone(d.list);
-    rq();
+    CFG.t=true;saveEquipe();reparaMesas();rq();
   },function(){});
   DB.doc('config/garcons').onSnapshot(function(s){
     if(pend['config/garcons'])return;
     var d=s.exists?s.data():null;
     if(d&&d.list)M.garcons=clone(d.list);
-    rq();
+    CFG.g=true;saveEquipe();reparaMesas();rq();
   },function(){});
   DB.doc('log/cancel').onSnapshot(function(s){
     if(pend['log/cancel'])return;
@@ -1237,13 +1282,11 @@ function startOp(){
   listen('menu',DB.collection('menu'),function(s){mergeColl('menu',s)});
   listen('mesas',DB.collection('mesas'),function(s){mergeColl('mesas',s)});
   listen('estoque',DB.collection('estoque'),function(s){mergeColl('estoque',s)});
-  DB.doc('config/taxistas').onSnapshot(function(s){
-    if(pend['config/taxistas'])return;
-    var d=s.exists?s.data():null;if(d&&d.list)M.taxistas=clone(d.list);rq();
-  },function(){});
-  DB.doc('config/garcons').onSnapshot(function(s){
-    if(pend['config/garcons'])return;
-    var d=s.exists?s.data():null;if(d&&d.list)M.garcons=clone(d.list);rq();
+  DB.doc('config/equipe').onSnapshot(function(s){
+    var d=s.exists?s.data():null;if(!d)return;
+    M.garcons=(d.garcons||[]).map(function(g){return{id:g.id,nome:g.nome,cor:g.cor,regras:{}}});
+    M.taxistas=(d.taxistas||[]).map(function(t){return{id:t.id,nome:t.nome,pct:0}});
+    rq();
   },function(){});
   DB.doc('log/cancel').onSnapshot(function(s){
     if(pend['log/cancel'])return;
