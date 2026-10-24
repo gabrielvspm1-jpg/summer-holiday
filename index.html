@@ -774,7 +774,7 @@ function sHoje(){
   }).join(''):'<p class="empty">Nenhum dia fechado ainda.</p>';
   h+='</section><section class="sec"><h2>Itens tirados das mesas</h2>';
   h+=M.log.length?M.log.slice(0,15).map(function(c){return '<div class="alert"><span><b>Mesa '+esc(c.mesa)+':</b> '+esc(c.item)+' ('+money(c.valor)+') · '+esc(c.motivo)+' · '+ago(c.ts)+' atrás</span></div>'}).join(''):'<p class="empty">Nada foi tirado. Quando alguém tirar um item, aparece aqui.</p>';
-  h+='</section><section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>5 · 23/10 22:25</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
+  h+='</section><section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>6 · 23/10 22:30</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
   return{top:topTab('Gestão',new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})),main:h,foot:navHTML()};
 }
 
@@ -969,7 +969,7 @@ document.addEventListener('click',function(e){
     case 'conf-ok':limparTeste().then(rq);break;
     case 'x':V.modal=null;break;
     case 'desp-novo':V.modal={type:'desp',tipo:'gasto'};break;
-    case 'desp-tipo':V.modal={type:'desp',tipo:d.v,v:val('f-valor'),desc:val('f-desc')};break;
+    case 'desp-tipo':var mm=V.modal,mem=mm.mem||{};mem[mm.tipo]={v:val('f-valor'),desc:val('f-desc')};V.modal={type:'desp',tipo:d.v,mem:mem,v:(mem[d.v]||{}).v||'',desc:(mem[d.v]||{}).desc||''};break;
     case 'desp-ok':if(saveDespForm())V.modal=null;else return;break;
     case 'desp-del':V.modal={type:'ddel',id:d.d};break;
     case 'desp-del-ok':var xid=V.modal.id;delete M.despesas[xid];saveDesp(xid);V.modal=null;toast('Despesa apagada');break;
