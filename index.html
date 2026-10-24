@@ -312,6 +312,7 @@ function ago(ts){
 
 /* ---------- dados (guardados na conta, iguais em todos os celulares) ---------- */
 var DB=null,canWrite=null,AUTH=null,USER=null,GM=null;
+function GV(){return !!(GM&&!GM.op)}
 var M={menu:{},estoque:{},mesas:{},dias:{},despesas:{},taxistas:[],ganhos:{},log:[],garcons:[{id:'g1',nome:'Pedro',regras:{petisco:30,p2:50,p3:0,p4:60,p5:0,p6:80}}]};
 var ready={menu:false,mesas:false,estoque:false};
 var V={tab:'mesas',mesaId:null,mesaTab:'add',cat:'top',fechando:false,open:{},modal:null,pay:null,fatal:null,slow:false,gtab:'resumo',lastG:'',q:''};
@@ -467,11 +468,11 @@ function garcom(id){return M.garcons.filter(function(g){return g.id===id})[0]}
 /* ---------- taxistas: ganham % do total da mesa (ja com os 10%); nessa mesa o garcom nao fica com os 10% ---------- */
 function taxista(id){return id?M.taxistas.filter(function(t){return t.id===id})[0]:null}
 function tNome(m){
-  if(GM)return m.status==='fechada'?(m.taxi?m.taxi.nome:''):(m.taxistaId?(m.taxistaNome||'Táxi'):'');
+  if(GV())return m.status==='fechada'?(m.taxi?m.taxi.nome:''):(m.taxistaId?(m.taxistaNome||'Táxi'):'');
   if(m.status==='fechada')return m.taxi?m.taxi.nome:'';
   var t=taxista(m.taxistaId);return t?t.nome:'';
 }
-function taxaGarcom(m){return (GM?m.taxistaId:taxista(m.taxistaId))?0:calc(m).taxa}
+function taxaGarcom(m){return (GV()?m.taxistaId:taxista(m.taxistaId))?0:calc(m).taxa}
 function taxiDe(m,pct){var c=calc(m);return round2(c.total*pct/100)}
 function taxistaDia(){
   var map={},order=[],ab=0;
@@ -535,7 +536,7 @@ function comissaoDia(){
   var list=order.map(function(id){var e=map[id];e.total=round2(e.com+e.taxa);e.linhas=REGRAS.map(function(r){return e.por[r[0]]}).filter(Boolean);return e});
   return{list:list,total:round2(list.reduce(function(a,e){return a+e.total},0)),aberto:ab};
 }
-function acessoDoc(g){return{garcomId:g.id,nome:g.nome,cor:gCor(g.id),regras:clone(g.regras||{}),email:g.email||''}}
+function acessoDoc(g){return{garcomId:g.id,nome:g.nome,cor:gCor(g.id),regras:clone(g.regras||{}),email:g.email||'',op:!!g.op}}
 function syncAcesso(id,email,oldEmail){
   if(oldEmail&&oldEmail!==email)saveDoc('acessos/'+oldEmail,function(){return null});
   if(email)saveDoc('acessos/'+email,function(){var x=garcom(id);return x&&x.email===email?acessoDoc(x):null});
@@ -550,10 +551,11 @@ function saveGarcom(){
   if(email&&!/^[^\s@\/]+@[^\s@\/]+\.[^\s@\/]+$/.test(email)){toast('Esse e-mail não parece certo');return false}
   var dup=M.garcons.filter(function(x){return email&&x.email===email&&(!g||x.id!==g.id)})[0];
   if(dup){toast('Esse e-mail já é de '+dup.nome);return false}
+  var opEl=document.getElementById('g-op'),op=!!(opEl&&opEl.checked);
   var oldEmail=g?(g.email||''):'';
   var cor=V.modal.cor||(g&&g.cor)||(g?gCor(g.id):GCORES[M.garcons.length%GCORES.length]);
   var gid3;
-  if(g){g.nome=nome;g.regras=regras;g.cor=cor;g.email=email;gid3=g.id}else{gid3=gid('g');M.garcons.push({id:gid3,nome:nome,regras:regras,cor:cor,email:email})}
+  if(g){g.nome=nome;g.regras=regras;g.cor=cor;g.email=email;g.op=op;gid3=g.id}else{gid3=gid('g');M.garcons.push({id:gid3,nome:nome,regras:regras,cor:cor,email:email,op:op})}
   saveGarcons();syncAcesso(gid3,email,oldEmail);toast('Garçom salvo');return true;
 }
 /* ---------- despesas do dia ---------- */
@@ -666,7 +668,7 @@ function topTab(titulo,subtitulo){
 }
 function navHTML(){
   var f=filaItens(),nf=f.pr.length+f.q.length;
-  var tabs=[['mesas','Mesas'],['fila','Fila'],['estoque','Estoque'],['cardapio','Cardápio'],['hoje','Gestão']];
+  var tabs=GM?[['mesas','Mesas'],['fila','Fila'],['estoque','Estoque'],['conta','Conta']]:[['mesas','Mesas'],['fila','Fila'],['estoque','Estoque'],['cardapio','Cardápio'],['hoje','Gestão']];
   return '<nav class="nav" aria-label="Seções">'+tabs.map(function(t){
     return '<button data-a="tab" data-v="'+t[0]+'"'+(V.tab===t[0]?' aria-current="page"':'')+'>'+t[1]+(t[0]==='fila'&&nf?'<span class="bd">'+nf+'</span>':'')+'</button>';
   }).join('')+'</nav>';
@@ -871,7 +873,7 @@ function sHoje(){
   }).join(''):'<p class="empty">Nenhum dia fechado ainda.</p>';
   h+='</section><section class="sec"><h2>Itens tirados das mesas</h2>';
   h+=M.log.length?M.log.slice(0,15).map(function(c){return '<div class="alert"><span><b>Mesa '+esc(c.mesa)+':</b> '+esc(c.item)+' ('+money(c.valor)+') · '+esc(c.motivo)+' · '+ago(c.ts)+' atrás</span></div>'}).join(''):'<p class="empty">Nada foi tirado. Quando alguém tirar um item, aparece aqui.</p>';
-  h+='</section><section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>11 · 24/10 00:10</b></p><button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
+  h+='</section><section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>12 · 24/10 00:40</b></p><button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
   return{top:topTab('Gestão',new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})),main:h,foot:navHTML()};
 }
 
@@ -898,7 +900,7 @@ function modalHTML(){
   }
   if(M2.type==='garcom'){
     var novoG=M2.id==='new',gg2=novoG?{nome:'',regras:{}}:(garcom(M2.id)||{nome:'',regras:{}});
-    return '<div class="sheet"><h2>'+(novoG?'Novo garçom':'Editar garçom')+'</h2><label class="f"><span>Nome</span><input id="g-nome" value="'+esc(gg2.nome)+'"></label><label class="f"><span>E-mail para ele entrar no app (opcional)</span><input id="g-email" type="email" inputmode="email" autocapitalize="off" autocorrect="off" value="'+esc(gg2.email||'')+'" placeholder="garcom@email.com"></label><p class="muted small" style="margin-top:12px">Cor dele</p><div class="swatches">'+GCORES.map(function(c){var cur=M2.cor||gg2.cor||(novoG?GCORES[M.garcons.length%GCORES.length]:gCor(gg2.id));return '<button type="button" class="sw" style="background:'+c+'" data-a="g-cor" data-v="'+c+'" aria-label="cor" aria-pressed="'+(cur===c)+'"></button>'}).join('')+'</div><p class="muted small" style="margin-top:14px">Quanto ele ganha por unidade vendida (R$)</p>'+
+    return '<div class="sheet"><h2>'+(novoG?'Novo garçom':'Editar garçom')+'</h2><label class="f"><span>Nome</span><input id="g-nome" value="'+esc(gg2.nome)+'"></label><label class="f"><span>E-mail para ele entrar no app (opcional)</span><input id="g-email" type="email" inputmode="email" autocapitalize="off" autocorrect="off" value="'+esc(gg2.email||'')+'" placeholder="garcom@email.com"></label><label class="check"><input id="g-op" type="checkbox"'+(gg2.op?' checked':'')+'><span>Acesso de caixa: pode abrir, lançar e fechar mesas de todos (sem Gestão)</span></label><p class="muted small" style="margin-top:12px">Cor dele</p><div class="swatches">'+GCORES.map(function(c){var cur=M2.cor||gg2.cor||(novoG?GCORES[M.garcons.length%GCORES.length]:gCor(gg2.id));return '<button type="button" class="sw" style="background:'+c+'" data-a="g-cor" data-v="'+c+'" aria-label="cor" aria-pressed="'+(cur===c)+'"></button>'}).join('')+'</div><p class="muted small" style="margin-top:14px">Quanto ele ganha por unidade vendida (R$)</p>'+
       REGRAS.map(function(r){return '<label class="f"><span>'+r[1]+'</span><input id="g-r-'+r[0]+'" inputmode="decimal" value="'+esc(String((gg2.regras&&gg2.regras[r[0]])||0).replace('.',','))+'"></label>'}).join('')+
       '<p class="muted small" style="margin-top:10px">Mudar os valores vale só para as próximas mesas fechadas.</p><div class="btns"><button class="btn" data-a="x">Cancelar</button><button class="btn primary" data-primary data-a="g-ok">Salvar</button></div>'+
       (novoG?'':'<button class="btn danger block" style="margin-top:10px" data-a="g-del">Remover garçom</button>')+'</div>';
@@ -1017,7 +1019,7 @@ function sGHoje(){
     }
     return '<button class="row tap'+(m.status==='aberta'?'':' ')+'" style="border-left:8px solid '+(m.status==='aberta'?'var(--accent)':'var(--ok)')+'" data-a="expand" data-k="g'+m.id+'"><div class="grow"><strong>Mesa '+esc(m.nome)+'</strong><div class="muted small">'+(m.status==='aberta'?'aberta há '+ago(m.abertaTs):'fechada')+(x.taxi?' · Táxi '+esc(x.taxi):'')+'</div></div><span style="text-align:right"><b class="num">'+money(tot)+'</b><div class="small num" style="color:var(--teal)">você '+money(round2(x.com+x.taxa))+'</div></span></button>'+det;
   }).join('');
-  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>11 · 24/10 00:10</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
+  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>12 · 24/10 00:40</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
   return{top:topTab(g?g.nome:'Meu dia',new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})),main:h,foot:navG()};
 }
 function sGDias(){
@@ -1037,13 +1039,18 @@ function sGDias(){
   var g=garcom(GM.gid);
   return{top:topTab(g?g.nome:'Meu dia','Dias anteriores'),main:h,foot:navG()};
 }
+function sContaOp(){
+  var g=garcom(GM.gid);
+  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>12 · 24/10 00:40</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
+}
 function render(){
   var r;
   if(V.fatal)r=sFatal();
   else if(!(ready.menu&&ready.mesas&&ready.estoque))r=sLoading();
   else{
     if(V.mesaId){var mm=mesaPor(V.mesaId);if(!mm||mm.status!=='aberta'){V.mesaId=null;V.fechando=false}}
-    if(GM)r=(V.tab==='dias'?sGDias:sGHoje)();
+    if(GV())r=(V.tab==='dias'?sGDias:sGHoje)();
+    else if(GM){if(['mesas','fila','estoque','conta'].indexOf(V.tab)<0)V.tab='mesas';r=V.mesaId?(V.fechando?sFechar():sMesa()):({mesas:sMesas,fila:sFila,estoque:sEstoque,conta:sContaOp}[V.tab])()}
     else r=V.mesaId?(V.fechando?sFechar():sMesa()):({mesas:sMesas,fila:sFila,estoque:sEstoque,cardapio:sCardapio,hoje:sHoje}[V.tab])();
     if(canWrite===false)r.main='<p class="warn">Você só pode ver. Para lançar pedidos, peça ao dono acesso de editor.</p>'+r.main;
   }
@@ -1052,7 +1059,7 @@ function render(){
   $('#main').innerHTML=r.main;
   $('#foot').innerHTML=r.foot;
   $('#top').style.display=r.top?'':'none';
-  var showQ=!V.fatal&&ready.menu&&ready.mesas&&ready.estoque&&(GM?(V.tab==='hoje'&&minhasMesas().length>0):(V.tab==='mesas'&&!V.mesaId&&abertas().length>0));
+  var showQ=!V.fatal&&ready.menu&&ready.mesas&&ready.estoque&&(GV()?(V.tab==='hoje'&&minhasMesas().length>0):(V.tab==='mesas'&&!V.mesaId&&abertas().length>0));
   var sb=document.getElementById('sbar');
   if(sb){
     sb.hidden=!showQ;
@@ -1221,7 +1228,30 @@ function startDono(){
     var d=s.exists?s.data():null;M.log=(d&&d.list)?clone(d.list):[];rq();
   },function(){});
 }
+function startOp(){
+  canWrite=true;V.tab='mesas';
+  var email=(USER.email||'').toLowerCase();
+  DB.doc('acessos/'+email).onSnapshot(function(sn){
+    if(!sn.exists){V.fatal='semacesso';rq()}
+  },function(e){if(e&&e.code==='permission-denied'){V.fatal='semacesso';rq()}});
+  listen('menu',DB.collection('menu'),function(s){mergeColl('menu',s)});
+  listen('mesas',DB.collection('mesas'),function(s){mergeColl('mesas',s)});
+  listen('estoque',DB.collection('estoque'),function(s){mergeColl('estoque',s)});
+  DB.doc('config/taxistas').onSnapshot(function(s){
+    if(pend['config/taxistas'])return;
+    var d=s.exists?s.data():null;if(d&&d.list)M.taxistas=clone(d.list);rq();
+  },function(){});
+  DB.doc('config/garcons').onSnapshot(function(s){
+    if(pend['config/garcons'])return;
+    var d=s.exists?s.data():null;if(d&&d.list)M.garcons=clone(d.list);rq();
+  },function(){});
+  DB.doc('log/cancel').onSnapshot(function(s){
+    if(pend['log/cancel'])return;
+    var d=s.exists?s.data():null;M.log=(d&&d.list)?clone(d.list):[];rq();
+  },function(){});
+}
 function startGarcom(){
+  if(GM.op){startOp();return}
   ready.estoque=false;canWrite=true;V.tab='hoje';
   var email=(USER.email||'').toLowerCase();
   DB.doc('acessos/'+email).onSnapshot(function(sn){
@@ -1236,18 +1266,18 @@ function startGarcom(){
 }
 var RK='shp-role-v1';
 function roleCache(email){try{var r=JSON.parse(localStorage.getItem(RK)||'null');return r&&r.email===email?r:null}catch(e){return null}}
-function roleSave(email,gid){try{localStorage.setItem(RK,JSON.stringify({email:email,gid:gid||''}))}catch(e){}}
+function roleSave(email,gid,op){try{localStorage.setItem(RK,JSON.stringify({email:email,gid:gid||'',op:!!op}))}catch(e){}}
 async function entrar(u){
-  var email=(u.email||'').toLowerCase(),gid='',achou=false;
+  var email=(u.email||'').toLowerCase(),gid='',achou=false,op=false;
   try{
     var sn=await DB.doc('acessos/'+email).get();
     achou=true;
-    if(sn.exists)gid=sn.data().garcomId||'';
+    if(sn.exists){gid=sn.data().garcomId||'';op=!!sn.data().op}
   }catch(e){
-    var c=roleCache(email);if(c){gid=c.gid}
+    var c=roleCache(email);if(c){gid=c.gid;op=!!c.op}
   }
-  roleSave(email,gid);
-  if(gid){GM={gid:gid,email:email};startGarcom()}else startDono();
+  roleSave(email,gid,op);
+  if(gid){GM={gid:gid,email:email,op:op};startGarcom()}else startDono();
 }
 function wireAuth(){
   var $=function(i){return document.getElementById(i)},mode='in',busy=false,started=false;

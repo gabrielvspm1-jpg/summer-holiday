@@ -7,6 +7,7 @@ service cloud.firestore {
     function dono() { return logado() && request.auth.token.email.lower() in ['gabrielvspm1@gmail.com']; }
     function acessoPath() { return /databases/$(database)/documents/acessos/$(request.auth.token.email.lower()); }
     function ehGarcom() { return logado() && exists(acessoPath()); }
+    function ehOp() { return ehGarcom() && get(acessoPath()).data.get('op', false) == true; }
     function meuGarcomId() { return get(acessoPath()).data.garcomId; }
 
     // O dono lê e grava tudo.
@@ -25,8 +26,20 @@ service cloud.firestore {
     }
 
     // Mesas: o garçom lê só as mesas marcadas com o nome dele.
+    // Mesas: garçom comum lê só as dele; acesso de caixa lê e grava todas.
     match /mesas/{id} {
-      allow read: if ehGarcom() && resource.data.garcomId == meuGarcomId();
+      allow read: if ehGarcom() && (ehOp() || resource.data.garcomId == meuGarcomId());
+      allow write: if ehOp();
+    }
+    // Acesso de caixa: estoque, cadastros (leitura) e registro de cancelamentos.
+    match /estoque/{id} {
+      allow read, write: if ehOp();
+    }
+    match /config/{id} {
+      allow read: if ehOp();
+    }
+    match /log/{id} {
+      allow read, write: if ehOp();
     }
 
     // Resumo dos dias fechados: só o do próprio garçom.
