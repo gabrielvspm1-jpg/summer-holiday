@@ -1,10 +1,37 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Só o e-mail do dono lê e grava. Troque pelo seu e-mail se for outro.
+
+    function logado() { return request.auth != null && request.auth.token.email != null; }
+    // Dono: coloque aqui o(s) e-mail(s) do dono, sempre em minúsculas.
+    function dono() { return logado() && request.auth.token.email.lower() in ['gabrielvspm1@gmail.com']; }
+    function acessoPath() { return /databases/$(database)/documents/acessos/$(request.auth.token.email.lower()); }
+    function ehGarcom() { return logado() && exists(acessoPath()); }
+    function meuGarcomId() { return get(acessoPath()).data.garcomId; }
+
+    // O dono lê e grava tudo.
     match /{document=**} {
-      allow read, write: if request.auth != null
-        && request.auth.token.email == 'gabrielvspm1@gmail.com';
+      allow read, write: if dono();
+    }
+
+    // Cada garçom lê só o próprio cadastro de acesso.
+    match /acessos/{email} {
+      allow get: if logado() && request.auth.token.email.lower() == email;
+    }
+
+    // Cardápio (nomes e preços): o garçom pode ler.
+    match /menu/{id} {
+      allow read: if ehGarcom();
+    }
+
+    // Mesas: o garçom lê só as mesas marcadas com o nome dele.
+    match /mesas/{id} {
+      allow read: if ehGarcom() && resource.data.garcomId == meuGarcomId();
+    }
+
+    // Resumo dos dias fechados: só o do próprio garçom.
+    match /ganhos/{id} {
+      allow read: if ehGarcom() && resource.data.garcomId == meuGarcomId();
     }
   }
 }
