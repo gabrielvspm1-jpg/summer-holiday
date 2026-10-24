@@ -1,5 +1,5 @@
 /* Deixa o app abrir sem internet: guarda os arquivos no celular. Os dados (pedidos, estoque) ficam no Firestore offline. */
-var V='shp-v17';
+var V='shp-v18';
 var CORE=['./','index.html','config.js','manifest.webmanifest','icons/icon-192.png','icons/icon-512.png','icons/apple-touch-icon.png'];
 var CDN=['https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js','https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js','https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js'];
 self.addEventListener('install',function(e){
