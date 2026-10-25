@@ -819,8 +819,8 @@ function sFila(){
 function saiu(id){var e=M.estoque[id];return (e?(e.base||0):0)-restam(id)}
 function sEstoque(){
   var its=menuList().filter(function(x){return x.estoque});
-  var h='';
-  if(!its.length)h+='<p class="empty">Nenhum item com controle de estoque. Ative no Cardápio.</p>';
+  var h=GM?'':'<button class="btn primary block" data-a="est-mgr">Escolher o que entra no estoque (adicionar / tirar bebidas)</button>';
+  if(!its.length)h+='<p class="empty">Nenhum item com controle de estoque. Toque no botão acima para escolher.</p>';
   var tot=0,rest=0;its.forEach(function(it){tot+=Math.max(0,saiu(it.id));rest+=Math.max(0,restam(it.id))});
   if(its.length)h+='<div class="estsum"><div><b class="num">'+rest+'</b><span>no cooler</span></div><div><b class="num">'+tot+'</b><span>já saíram</span></div></div>';
   h+='<section class="sec">'+its.map(function(it){
@@ -926,7 +926,7 @@ function sHoje(){
   }).join(''):'<p class="empty">Nenhum dia fechado ainda.</p>';
   h+='</section><section class="sec"><h2>Itens tirados das mesas</h2>';
   h+=M.log.length?M.log.slice(0,15).map(function(c){return '<div class="alert"><span><b>Mesa '+esc(c.mesa)+':</b> '+esc(c.item)+' ('+money(c.valor)+') · '+esc(c.motivo)+' · '+ago(c.ts)+' atrás</span></div>'}).join(''):'<p class="empty">Nada foi tirado. Quando alguém tirar um item, aparece aqui.</p>';
-  h+='</section><section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>29 · 25/10 16:25</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
+  h+='</section><section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>30 · 25/10 16:40</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
   return{top:topTab('Gestão',new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})),main:h,foot:navHTML()};
 }
 
@@ -971,6 +971,13 @@ function modalHTML(){
   if(M2.type==='passar'){
     var outras=abertas().filter(function(m){return m.id!==M2.m});
     return '<div class="sheet"><h2>Passar para qual mesa?</h2>'+(outras.length?'<div class="pays">'+outras.map(function(m){return '<button class="btn big" data-a="passar-ok" data-to="'+m.id+'">Mesa '+esc(m.nome)+'</button>'}).join('')+'</div>':'<p class="empty">Não há outra mesa aberta.</p>')+'<div class="btns"><button class="btn" data-a="x">Voltar</button></div></div>';
+  }
+  if(M2.type==='estmgr'){
+    var all=menuList(),cats=CATS.slice();all.forEach(function(x){if(cats.indexOf(x.cat)<0)cats.push(x.cat)});
+    return '<div class="sheet"><h2>O que entra no estoque</h2><p class="muted small">Ligado = o app conta e desconta a cada venda. Desligado = só aparece no cardápio.</p><div style="max-height:56vh;overflow:auto;display:flex;flex-direction:column;gap:6px;margin-top:8px">'+cats.map(function(c){
+      var l=all.filter(function(x){return x.cat===c});
+      return l.length?'<p class="muted small" style="margin:8px 0 2px"><b>'+esc(c)+'</b></p>'+l.map(function(it){return '<button class="toggle" data-a="est-toggle" data-i="'+it.id+'" aria-pressed="'+!!it.estoque+'"><span>'+esc(it.nome)+(it.desc?' <span class="muted small">'+esc(it.desc)+'</span>':'')+'</span><span class="sw"></span></button>'}).join(''):'';
+    }).join('')+'</div><div class="btns"><button class="btn primary" data-a="x">Pronto</button></div></div>';
   }
   if(M2.type==='estoque'){
     var it=item(M2.id),q=restam(it.id);
@@ -1074,7 +1081,7 @@ function sGHoje(){
     }
     return '<button class="row tap'+(m.status==='aberta'?'':' ')+'" style="border-left:8px solid '+(m.status==='aberta'?'var(--accent)':'var(--ok)')+'" data-a="expand" data-k="g'+m.id+'"><div class="grow"><strong>Mesa '+esc(m.nome)+'</strong><div class="muted small">'+(m.status==='aberta'?'aberta há '+ago(m.abertaTs):'fechada')+(x.taxi?' · Táxi '+esc(x.taxi):'')+'</div></div><span style="text-align:right"><b class="num">'+money(tot)+'</b><div class="small num" style="color:var(--teal)">você '+money(round2(x.com+x.taxa))+'</div></span></button>'+det;
   }).join('');
-  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>29 · 25/10 16:25</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
+  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>30 · 25/10 16:40</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
   return{top:topTab(g?g.nome:'Meu dia',new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})),main:h,foot:navG()};
 }
 function sGDias(){
@@ -1106,7 +1113,7 @@ function sGanhosDiasOp(){
 }
 function sContaOp(){
   var g=garcom(GM.gid);
-  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>29 · 25/10 16:25</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
+  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>30 · 25/10 16:40</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
 }
 function render(){
   var r;
@@ -1238,6 +1245,8 @@ document.addEventListener('click',function(e){
     case 'conf':V.modal={type:'confirm'};break;
     case 'conf-ok':if(val('f-limpar').trim().toUpperCase()!=='LIMPAR'){toast('Escreva LIMPAR para confirmar');return}limparTeste().then(rq);break;
     case 'precos-novos':var np=aplicarPrecos();toast(np?np+' preço(s) atualizado(s)':'Os petiscos já estão com os preços novos');break;
+    case 'est-mgr':V.modal={type:'estmgr'};break;
+    case 'est-toggle':var ti=item(d.i);if(ti){ti.estoque=!ti.estoque;saveMenuDoc(ti.id);if(ti.estoque&&!M.estoque[ti.id]){M.estoque[ti.id]={id:ti.id,base:0,baseTs:now(),contagem:null};saveEstoqueDoc(ti.id)}try{el.setAttribute('aria-pressed',ti.estoque?'true':'false');el.querySelector('.sw')}catch(e){}toast(ti.estoque?ti.nome+' entrou no estoque':ti.nome+' saiu do estoque')}return;
     case 'x':V.modal=null;break;
     case 'desp-novo':V.modal={type:'desp',tipo:'gasto'};break;
     case 'desp-tipo':var mm=V.modal,mem=mm.mem||{};mem[mm.tipo]={v:val('f-valor'),desc:val('f-desc')};V.modal={type:'desp',tipo:d.v,mem:mem,v:(mem[d.v]||{}).v||'',desc:(mem[d.v]||{}).desc||''};break;
