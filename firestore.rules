@@ -8,6 +8,7 @@ service cloud.firestore {
     function acessoPath() { return /databases/$(database)/documents/acessos/$(request.auth.token.email.lower()); }
     function ehGarcom() { return logado() && exists(acessoPath()); }
     function ehOp() { return ehGarcom() && get(acessoPath()).data.get('op', false) == true; }
+    function ehLanca() { return ehGarcom() && get(acessoPath()).data.get('lanca', false) == true; }
     function meuGarcomId() { return get(acessoPath()).data.garcomId; }
 
     function mestre() { return logado() && request.auth.token.email.lower() == 'gabrielvspm1@gmail.com'; }
@@ -27,10 +28,12 @@ service cloud.firestore {
       allow read: if ehGarcom();
     }
 
-    // Mesas: garçom comum lê só as dele; acesso de caixa lê e grava todas.
+    // Mesas: garçom comum lê só as dele; quem lança grava só as dele; caixa lê e grava todas.
     match /mesas/{id} {
       allow read: if ehGarcom() && (ehOp() || resource.data.garcomId == meuGarcomId());
-      allow write: if ehOp();
+      allow create: if ehOp() || (ehLanca() && request.resource.data.garcomId == meuGarcomId());
+      allow update: if ehOp() || (ehLanca() && resource.data.garcomId == meuGarcomId() && request.resource.data.garcomId == meuGarcomId());
+      allow delete: if ehOp();
     }
     // Acesso de caixa: estoque, cadastros (leitura) e registro de cancelamentos.
     match /estoque/{id} {
@@ -38,7 +41,7 @@ service cloud.firestore {
     }
     // Só nomes de garçons e taxistas (sem comissões nem porcentagens).
     match /config/equipe {
-      allow read: if ehOp();
+      allow read: if ehOp() || ehLanca();
     }
     match /log/{id} {
       allow read, write: if ehOp();
