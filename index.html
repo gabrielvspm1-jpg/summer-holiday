@@ -429,6 +429,7 @@ function mergeColl(name,snap){
 }
 function listen(name,query,fn){
   query.onSnapshot(function(snap){fn(snap);if(name in ready)ready[name]=true;rq()},function(e){
+    if(e&&(e.code==='unavailable'||e.code==='deadline-exceeded'||e.code==='cancelled'))return;
     V.fatal=(e&&e.code==='revoked')?'revoked':(e&&e.code==='permission-denied')?'semacesso':'erro';rq();
   });
 }
@@ -779,11 +780,11 @@ function navHTML(){
   }).join('')+'</nav>';
 }
 function sFatal(){
-  var msg={nodb:'Não consegui abrir os dados.',sdk:'Não consegui carregar o app. Abra uma vez com internet e tente de novo.',config:'Falta colar a configuração do Firebase no arquivo config.js.',revoked:'O acesso foi retirado.',semacesso:'Este e-mail ainda não foi liberado. Peça ao dono para cadastrar o seu e-mail.',erro:'Sem permissão ou sem conexão com os dados. Confira se entrou com o e-mail do dono.'}[V.fatal]||'Algo deu errado.';
+  var msg={nodb:'Não consegui abrir os dados.',sdk:'Não consegui carregar o app. Abra uma vez com internet e tente de novo.',config:'Falta colar a configuração do Firebase no arquivo config.js.',revoked:'O acesso foi retirado.',primeiro:'Para o primeiro acesso neste celular precisa de internet. Conecte e tente de novo; depois disso o app abre até sem internet.',semacesso:'Este e-mail ainda não foi liberado. Peça ao dono para cadastrar o seu e-mail.',erro:'Sem permissão ou sem conexão com os dados. Confira se entrou com o e-mail do dono.'}[V.fatal]||'Algo deu errado.';
   return{top:'',main:'<div class="center"><img src="'+LOGO+'" alt="Summer Holiday Pontal"><h1>Ops</h1><p class="muted">'+msg+'</p><button class="btn primary big" data-a="reload">Tentar de novo</button></div>',foot:''};
 }
 function sLoading(){
-  return{top:'',main:'<div class="center"><img src="'+LOGO+'" alt="Summer Holiday Pontal"><p class="muted">'+(V.slow?'Demorando mais que o normal. Confira a internet.':'Abrindo…')+'</p></div>',foot:''};
+  return{top:'',main:'<div class="center"><img src="'+LOGO+'" alt="Summer Holiday Pontal"><p class="muted">'+(V.slow?'Demorando mais que o normal. Sem internet, o app abre com o que está guardado no celular; se for a primeira vez neste celular, precisa de internet.':'Abrindo…')+'</p></div>',foot:''};
 }
 function sMesas(){
   var ab=abertas(),pr=[];
@@ -1016,7 +1017,7 @@ function sHoje(){
   }).join(''):'<p class="empty">Nenhum dia fechado ainda.</p>';
   h+='</section>';seg('dias');h+='<section class="sec"><h2>Itens tirados das mesas</h2>';
   h+=M.log.length?M.log.slice(0,15).map(function(c){return '<div class="alert"><span><b>Mesa '+esc(c.mesa)+':</b> '+esc(c.item)+' ('+money(c.valor)+') · '+esc(c.motivo)+' · '+ago(c.ts)+' atrás</span></div>'}).join(''):'<p class="empty">Nada foi tirado. Quando alguém tirar um item, aparece aqui.</p>';
-  h+='</section><section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>40 · 25/10 20:45</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
+  h+='</section><section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>41 · 25/10 21:15</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
   seg('mais');
   var rt=V.rtab||'dia',nd=Object.keys(M.dias).length,nm=ab.length+fe.length;
   var sub2=[['dia','Hoje'],['desp','Despesas'+(r.desp.list.length?' · '+r.desp.list.length:'')],['mesas','Mesas fechadas · '+fe.length],['dias','Dias'+(nd?' · '+nd:'')],['mais','Mais']];
@@ -1175,7 +1176,7 @@ function sGHoje(){
     }
     return '<button class="row tap'+(m.status==='aberta'?'':' ')+'" style="border-left:8px solid '+(m.status==='aberta'?'var(--accent)':'var(--ok)')+'" data-a="expand" data-k="g'+m.id+'"><div class="grow"><strong>Mesa '+esc(m.nome)+'</strong><div class="muted small">'+(m.status==='aberta'?'aberta há '+ago(m.abertaTs):'fechada')+(x.taxi?' · Táxi '+esc(x.taxi):'')+'</div></div><span style="text-align:right"><b class="num">'+money(tot)+'</b><div class="small num" style="color:var(--teal)">você '+money(round2(x.com+x.taxa))+'</div></span></button>'+det;
   }).join('');
-  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>40 · 25/10 20:45</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
+  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>41 · 25/10 21:15</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
   return{top:topTab(g?g.nome:'Meu dia',new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})),main:h,foot:navG()};
 }
 function sGDias(){
@@ -1207,7 +1208,7 @@ function sGanhosDiasOp(){
 }
 function sContaOp(){
   var g=garcom(GM.gid);
-  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>40 · 25/10 20:45</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
+  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>41 · 25/10 21:15</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
 }
 function render(){
   var r;
@@ -1490,15 +1491,21 @@ var RK='shp-role-v1';
 function roleCache(email){try{var r=JSON.parse(localStorage.getItem(RK)||'null');return r&&r.email===email?r:null}catch(e){return null}}
 function roleSave(email,gid,op,lanca){try{localStorage.setItem(RK,JSON.stringify({email:email,gid:gid||'',op:!!op,lanca:!!lanca}))}catch(e){}}
 async function entrar(u){
-  var email=(u.email||'').toLowerCase(),gid='',achou=false,op=false,lanca=false;
-  try{
-    var sn=await DB.doc('acessos/'+email).get();
-    achou=true;
-    if(sn.exists){gid=sn.data().garcomId||'';op=!!sn.data().op;lanca=!!sn.data().lanca}
-  }catch(e){
-    var c=roleCache(email);if(c){gid=c.gid;op=!!c.op;lanca=!!c.lanca}
+  var email=(u.email||'').toLowerCase(),gid='',op=false,lanca=false;
+  var c=roleCache(email);
+  function ler(sn){var r={gid:'',op:false,lanca:false};if(sn.exists){var d=sn.data();r.gid=d.garcomId||'';r.op=!!d.op;r.lanca=!!d.lanca}return r}
+  if(c){
+    /* ja entrou antes neste celular: abre na hora, sem esperar a internet; confere o acesso em segundo plano */
+    gid=c.gid;op=!!c.op;lanca=!!c.lanca;
+    try{DB.doc('acessos/'+email).get().then(function(sn){
+      var r=ler(sn);
+      if(r.gid!==gid||r.op!==op||r.lanca!==lanca){roleSave(email,r.gid,r.op,r.lanca);location.reload()}
+    }).catch(function(){})}catch(e){}
+  }else{
+    try{var sn=await DB.doc('acessos/'+email).get();var r=ler(sn);gid=r.gid;op=r.op;lanca=r.lanca}
+    catch(e){V.fatal='primeiro';rq();return}
+    roleSave(email,gid,op,lanca);
   }
-  roleSave(email,gid,op,lanca);
   if(gid){GM={gid:gid,email:email,op:op,lanca:lanca};startGarcom()}else startDono();
   setTimeout(function(){audit('Entrou no app','')},3500);
 }
@@ -1566,6 +1573,7 @@ function wireAuth(){
   try{
     firebase.initializeApp(cfg);
     AUTH=firebase.auth();
+    try{await AUTH.setPersistence(firebase.auth.Auth.Persistence.LOCAL)}catch(e){}
     var fs=firebase.firestore();
     try{await fs.enablePersistence({synchronizeTabs:true})}catch(e){}
     DB=fs;canWrite=true;
