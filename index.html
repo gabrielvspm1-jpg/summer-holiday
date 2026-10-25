@@ -829,7 +829,7 @@ function sEstoque(){
       '<div class="ebar"><i style="width:'+pct+'%"></i></div>'+
       '<div class="einfo"><span>Tinha <b>'+base+'</b></span><span>Saíram <b>'+s+'</b></span><span>Restam <b>'+q+'</b></span></div>'+
       (neg?'<div class="small" style="color:var(--danger)">Saiu mais do que tinha: lance a compra ou conte</div>':low?'<div class="small" style="color:var(--amber)">Acabando! Repor no cooler</div>':'')+
-      '<div class="ebtns"><button class="btn primary" data-a="est-quick" data-i="'+it.id+'" data-v="12">+12 (1 pack)</button><button class="btn" data-a="est" data-i="'+it.id+'" data-t="entrada">+ Outro</button><button class="btn ghost" data-a="est" data-i="'+it.id+'" data-t="contar">Contar</button></div>'+
+      '<div class="ebtns"><button class="btn primary" data-a="est-quick" data-i="'+it.id+'" data-v="12">+12 (1 pack)</button><button class="btn" data-a="est" data-i="'+it.id+'" data-t="entrada">+ Outro</button><button class="btn ghost" data-a="est" data-i="'+it.id+'" data-t="contar">Contar</button></div><div class="ebtns"><button class="btn danger" data-a="est-quick" data-i="'+it.id+'" data-v="-1">− 1</button><button class="btn danger" data-a="est-quick" data-i="'+it.id+'" data-v="-12">− 12</button><button class="btn danger" data-a="est" data-i="'+it.id+'" data-t="saida">− Retirar outro</button></div>'+
       (c?'<div class="muted small" style="margin-top:6px">Última contagem: '+(c.dif===0?'bateu':(c.dif>0?'sobraram ':'faltaram ')+Math.abs(c.dif))+' · '+ago(c.ts)+' atrás</div>':'')+'</div>';
   }).join('')+'</section>';
   return{top:topTab('Estoque',''),main:h,foot:navHTML()};
@@ -918,7 +918,7 @@ function sHoje(){
   }).join(''):'<p class="empty">Nenhum dia fechado ainda.</p>';
   h+='</section><section class="sec"><h2>Itens tirados das mesas</h2>';
   h+=M.log.length?M.log.slice(0,15).map(function(c){return '<div class="alert"><span><b>Mesa '+esc(c.mesa)+':</b> '+esc(c.item)+' ('+money(c.valor)+') · '+esc(c.motivo)+' · '+ago(c.ts)+' atrás</span></div>'}).join(''):'<p class="empty">Nada foi tirado. Quando alguém tirar um item, aparece aqui.</p>';
-  h+='</section><section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>22 · 25/10 09:30</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
+  h+='</section><section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>23 · 25/10 15:20</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
   return{top:topTab('Gestão',new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})),main:h,foot:navHTML()};
 }
 
@@ -966,6 +966,7 @@ function modalHTML(){
   }
   if(M2.type==='estoque'){
     var it=item(M2.id),q=restam(it.id);
+    if(M2.tipo==='saida')return '<div class="sheet"><h2>Retirar de '+esc(it.nome)+'</h2><p class="muted">Agora o app tem '+q+'. Quantas unidades quer tirar? (lancei a mais, quebrou, devolvi…)</p><div class="chips" style="margin-top:10px">'+[1,2,6,12].map(function(n){return '<button class="chipbtn" data-a="qtd-add" data-v="'+n+'">+'+n+'</button>'}).join('')+'</div><label class="f"><span>Unidades a tirar</span><input id="f-qtd" type="number" inputmode="numeric" min="0" value="0"></label><div class="btns"><button class="btn" data-a="x">Cancelar</button><button class="btn danger" data-primary data-a="est-ok">Tirar do estoque</button></div></div>';
     if(M2.tipo==='entrada')return '<div class="sheet"><h2>Compra de '+esc(it.nome)+'</h2><p class="muted">Agora o app tem '+q+'. Quantas unidades chegaram?</p><div class="chips" style="margin-top:10px">'+[12,24,6,48].map(function(n){return '<button class="chipbtn" data-a="qtd-add" data-v="'+n+'">+'+n+'</button>'}).join('')+'</div><label class="f"><span>Unidades</span><input id="f-qtd" type="number" inputmode="numeric" min="0" value="0"></label><div class="btns"><button class="btn" data-a="x">Cancelar</button><button class="btn primary" data-primary data-a="est-ok">Somar ao estoque</button></div></div>';
     return '<div class="sheet"><h2>Contar '+esc(it.nome)+'</h2><p class="muted">O app calcula que restam '+q+'. Quantas tem de verdade no cooler e no depósito?</p><label class="f"><span>Contei</span><input id="f-qtd" type="number" inputmode="numeric" min="0" value="'+Math.max(0,q)+'"></label><div class="btns"><button class="btn" data-a="x">Cancelar</button><button class="btn primary" data-primary data-a="est-ok">Salvar contagem</button></div></div>';
   }
@@ -1064,7 +1065,7 @@ function sGHoje(){
     }
     return '<button class="row tap'+(m.status==='aberta'?'':' ')+'" style="border-left:8px solid '+(m.status==='aberta'?'var(--accent)':'var(--ok)')+'" data-a="expand" data-k="g'+m.id+'"><div class="grow"><strong>Mesa '+esc(m.nome)+'</strong><div class="muted small">'+(m.status==='aberta'?'aberta há '+ago(m.abertaTs):'fechada')+(x.taxi?' · Táxi '+esc(x.taxi):'')+'</div></div><span style="text-align:right"><b class="num">'+money(tot)+'</b><div class="small num" style="color:var(--teal)">você '+money(round2(x.com+x.taxa))+'</div></span></button>'+det;
   }).join('');
-  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>22 · 25/10 09:30</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
+  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>23 · 25/10 15:20</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
   return{top:topTab(g?g.nome:'Meu dia',new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})),main:h,foot:navG()};
 }
 function sGDias(){
@@ -1096,7 +1097,7 @@ function sGanhosDiasOp(){
 }
 function sContaOp(){
   var g=garcom(GM.gid);
-  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>22 · 25/10 09:30</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
+  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>23 · 25/10 15:20</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
 }
 function render(){
   var r;
@@ -1155,6 +1156,7 @@ function saveEstoque(){
   if(isNaN(n)||n<0){toast('Digite um número');return false}
   var e=M.estoque[it.id]||{id:it.id,base:0,baseTs:0,contagem:null};
   if(V.modal.tipo==='entrada'){e.base=(e.base||0)+n;toast('+'+n+' '+it.nome)}
+  else if(V.modal.tipo==='saida'){e.base=Math.max(0,(e.base||0)-n);toast('−'+n+' '+it.nome)}
   else{
     var esp=restam(it.id),dif=n-esp;
     e.base=n;e.baseTs=now();e.contagem={ts:now(),dif:dif,esperado:esp,contado:n};
@@ -1215,7 +1217,7 @@ document.addEventListener('click',function(e){
     case 'fechar-ok':fecharMesa();break;
     case 'expand':V.open[d.k]=!V.open[d.k];break;
     case 'est':V.modal={type:'estoque',id:d.i,tipo:d.t};break;
-    case 'est-quick':var qi=item(d.i),qe=M.estoque[d.i]||{id:d.i,base:0,baseTs:0,contagem:null};qe.base=(qe.base||0)+parseInt(d.v,10);M.estoque[d.i]=qe;saveEstoqueDoc(d.i);toast('+'+d.v+' '+qi.nome);break;
+    case 'est-quick':var qi=item(d.i),qe=M.estoque[d.i]||{id:d.i,base:0,baseTs:0,contagem:null};var qv=parseInt(d.v,10);qe.base=Math.max(0,(qe.base||0)+qv);M.estoque[d.i]=qe;saveEstoqueDoc(d.i);toast((qv>0?'+':'−')+Math.abs(qv)+' '+qi.nome);break;
     case 'qtd-add':var inp=document.getElementById('f-qtd');if(inp)inp.value=(parseInt(inp.value,10)||0)+parseInt(d.v,10);return;
     case 'est-ok':if(saveEstoque())V.modal=null;else return;break;
     case 'item':V.modal={type:'item',id:d.i};break;
