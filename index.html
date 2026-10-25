@@ -335,6 +335,8 @@ function ago(ts){
 
 /* ---------- dados (guardados na conta, iguais em todos os celulares) ---------- */
 var DB=null,canWrite=null,AUTH=null,USER=null,GM=null;
+var MASTER='gabrielvspm1@gmail.com';
+function ehMaster(){return !GM&&!!USER&&String(USER.email||'').toLowerCase()===MASTER}
 function GV(){return !!(GM&&!GM.op)}
 var M={auditoria:[],menu:{},estoque:{},mesas:{},dias:{},despesas:{},taxistas:[],ganhos:{},log:[],garcons:[{id:'g1',nome:'Pedro',regras:{petisco:30,p2:50,p3:0,p4:60,p5:0,p6:80}}]};
 var ready={menu:false,mesas:false,estoque:false};
@@ -892,7 +894,7 @@ function linhasHTML(m){
   return m.itens.map(function(l){return '<div class="sumrow"><span>'+l.qtd+'× '+esc(l.nome)+'</span><span>'+chip(l.status)+'</span></div>'}).join('')||'<p class="muted small">Sem itens.</p>';
 }
 function segG(){
-  return '<div class="seg" style="grid-template-columns:repeat(4,1fr)"><button data-a="gtab" data-v="resumo" aria-pressed="'+(V.gtab!=='garcons'&&V.gtab!=='taxistas'&&V.gtab!=='registro')+'">Resumo</button><button data-a="gtab" data-v="garcons" aria-pressed="'+(V.gtab==='garcons')+'">Garçons</button><button data-a="gtab" data-v="taxistas" aria-pressed="'+(V.gtab==='taxistas')+'">Taxistas</button><button data-a="gtab" data-v="registro" aria-pressed="'+(V.gtab==='registro')+'">Registro</button></div>';
+  return '<div class="seg" style="grid-template-columns:repeat('+(ehMaster()?4:3)+',1fr)"><button data-a="gtab" data-v="resumo" aria-pressed="'+(V.gtab!=='garcons'&&V.gtab!=='taxistas'&&V.gtab!=='registro')+'">Resumo</button><button data-a="gtab" data-v="garcons" aria-pressed="'+(V.gtab==='garcons')+'">Garçons</button><button data-a="gtab" data-v="taxistas" aria-pressed="'+(V.gtab==='taxistas')+'">Taxistas</button>'+(ehMaster()?'<button data-a="gtab" data-v="registro" aria-pressed="'+(V.gtab==='registro')+'">Registro</button>':'')+'</div>';
 }
 function sTaxistas(){
   var c=taxistaDia();
@@ -930,33 +932,33 @@ function catAcao(a){
 var ACOR={mesas:'var(--accent)',estoque:'var(--teal)',cardapio:'#B38CFF',equipe:'#F6C453',acesso:'var(--muted)'};
 function sRegistro(){
   var all=M.auditoria||[],hoje0=new Date();hoje0.setHours(0,0,0,0);
-  var pess={};
-  all.forEach(function(x){var e=x.email||'?',p=pess[e]||(pess[e]={email:e,nome:x.nome||e,n:0,nh:0,ult:0});p.n++;if(x.ts>=hoje0.getTime())p.nh++;if(x.ts>p.ult)p.ult=x.ts;if(x.ts>=p.ult)p.nome=x.nome||p.nome});
+  var fc=V.acat||'',pess={};
+  all.forEach(function(x){var e=x.email||'?',p=pess[e]||(pess[e]={email:e,nome:x.nome||e,n:0,nh:0,ult:0,l:[]});p.n++;if(x.ts>=hoje0.getTime())p.nh++;if(x.ts>=p.ult){p.ult=x.ts;p.nome=x.nome||p.nome}p.l.push(x)});
   var lp=Object.keys(pess).map(function(k){return pess[k]}).sort(function(a,b){return b.ult-a.ult});
-  var fp=V.afil||'',fc=V.acat||'';
-  var lista=all.filter(function(x){return (!fp||x.email===fp)&&(!fc||catAcao(x.acao)===fc)});
-  var h=segG()+'<section class="sec"><div class="kpi"><div class="k">Ações registradas hoje</div><div class="v num">'+all.filter(function(x){return x.ts>=hoje0.getTime()}).length+'</div><div class="muted small">'+lp.length+' conta(s) já mexeram no app · mostra as últimas '+all.length+'</div></div></section>';
-  h+='<section class="sec"><h2>Quem está mexendo</h2>'+(lp.length?lp.map(function(p){
-    return '<button class="row tap" data-a="aud-fil" data-v="'+(fp===p.email?'':esc(p.email))+'"'+(fp===p.email?' style="border-color:var(--accent)"':'')+'><div class="grow"><strong>'+esc(p.nome)+'</strong><div class="muted small">'+esc(p.email)+' · última ação '+(ago(p.ult)==='agora'?'agora':'há '+ago(p.ult))+'</div></div><span style="text-align:right"><b class="num">'+p.nh+'</b><div class="muted small">hoje</div></span></button>';
-  }).join(''):'<p class="empty">Ainda não há nada registrado.</p>')+'</section>';
-  h+='<section class="sec"><h2>Histórico <span class="count">'+lista.length+'</span></h2>';
-  h+='<div class="chips" style="margin-bottom:8px"><button class="chipbtn" data-a="aud-cat" data-v="" aria-pressed="'+(!fc)+'">Tudo</button>'+ACATS.map(function(c){return '<button class="chipbtn" data-a="aud-cat" data-v="'+c[0]+'" aria-pressed="'+(fc===c[0])+'">'+c[1]+'</button>'}).join('')+'</div>';
-  if(fp)h+='<p class="muted small" style="margin-bottom:8px">Só de <b>'+esc((pess[fp]||{}).nome||fp)+'</b>. <button class="lnk" data-a="aud-fil" data-v="">Ver todos</button></p>';
-  if(!lista.length)h+='<p class="empty">Nada por aqui com esse filtro.</p>';
-  var dia='';
-  h+=lista.slice(0,200).map(function(x){
-    var d=new Date(x.ts),dd=d.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'}),cab='';
-    if(dd!==dia){dia=dd;cab='<h3 style="margin:14px 0 6px;font-size:15px;text-transform:capitalize;color:var(--muted)">'+(d.toDateString()===new Date().toDateString()?'Hoje · ':'')+esc(dd)+'</h3>'}
-    var c=catAcao(x.acao);
-    return cab+'<div class="row" style="border-left:6px solid '+ACOR[c]+'"><div class="grow"><strong>'+esc(x.acao)+'</strong>'+(x.det?'<div>'+esc(x.det)+'</div>':'')+'<div class="muted small">'+esc(x.nome||'')+' · '+esc(x.email||'')+'</div></div><span class="num" style="font-weight:800;white-space:nowrap">'+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</span></div>';
-  }).join('');
-  h+='</section>';
+  var h=segG()+'<section class="sec"><div class="kpi"><div class="k">Ações registradas hoje</div><div class="v num">'+all.filter(function(x){return x.ts>=hoje0.getTime()}).length+'</div><div class="muted small">'+lp.length+' conta(s) já mexeram no app</div></div></section>';
+  h+='<section class="sec"><h2>O que cada conta fez</h2><div class="chips" style="margin-bottom:10px"><button class="chipbtn" data-a="aud-cat" data-v="" aria-pressed="'+(!fc)+'">Tudo</button>'+ACATS.map(function(c){return '<button class="chipbtn" data-a="aud-cat" data-v="'+c[0]+'" aria-pressed="'+(fc===c[0])+'">'+c[1]+'</button>'}).join('')+'</div>';
+  if(!lp.length)h+='<p class="empty">Ainda não há nada registrado.</p>';
+  h+=lp.map(function(p){
+    var g=M.garcons.filter(function(x){return x.nome===String(p.nome).replace(/ \(caixa\)$/,'')})[0],cor=g?gCor(g.id):'var(--accent)';
+    var lista=p.l.filter(function(x){return !fc||catAcao(x.acao)===fc}),o=V.open['p'+p.email];
+    var cab='<button class="row tap" style="border-left:8px solid '+cor+';min-height:72px" data-a="expand" data-k="p'+esc(p.email)+'"><div class="grow"><strong style="font-size:18px">'+esc(p.nome)+'</strong><div class="muted small">'+esc(p.email)+'</div><div class="small" style="margin-top:2px">última ação '+(ago(p.ult)==='agora'?'agora':'há '+ago(p.ult))+'</div></div><span style="text-align:right"><b class="num" style="font-size:24px">'+p.nh+'</b><div class="muted small">hoje</div></span><span class="muted" style="font-size:26px;margin-left:6px">'+(o?'⌄':'›')+'</span></button>';
+    var det='';
+    if(o){
+      var dia='';
+      det='<div class="card" style="margin:-4px 0 12px;border-left:8px solid '+cor+'">'+(lista.length?lista.slice(0,80).map(function(x){
+        var d=new Date(x.ts),dd=d.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'}),hd='';
+        if(dd!==dia){dia=dd;hd='<div class="muted small" style="margin:10px 0 4px;text-transform:capitalize;font-weight:800">'+(d.toDateString()===new Date().toDateString()?'Hoje · ':'')+esc(dd)+'</div>'}
+        return hd+'<div class="sumrow" style="align-items:flex-start"><span><b style="color:'+ACOR[catAcao(x.acao)]+'">'+esc(x.acao)+'</b>'+(x.det?'<br><span class="small">'+esc(x.det)+'</span>':'')+'</span><span class="num muted small" style="white-space:nowrap">'+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</span></div>';
+      }).join(''):'<p class="empty">Nada com esse filtro.</p>')+'</div>';
+    }
+    return cab+det;
+  }).join('')+'</section>';
   return{top:topTab('Registro','Quem fez o quê no app'),main:h,foot:navHTML()};
 }
 function sHoje(){
   if(V.gtab==='garcons')return sGarcons();
   if(V.gtab==='taxistas')return sTaxistas();
-  if(V.gtab==='registro')return sRegistro();
+  if(V.gtab==='registro'&&ehMaster())return sRegistro();
   var r=resumoDia(),al=alertas(),ab=abertas(),totalAb=ab.reduce(function(a,m){return a+sub(m)},0),fe=fechadas();
   var P={},H0=segG();
   function seg(k){P[k]=(P[k]||'')+h;h=''}
@@ -998,7 +1000,7 @@ function sHoje(){
   }).join(''):'<p class="empty">Nenhum dia fechado ainda.</p>';
   h+='</section>';seg('dias');h+='<section class="sec"><h2>Itens tirados das mesas</h2>';
   h+=M.log.length?M.log.slice(0,15).map(function(c){return '<div class="alert"><span><b>Mesa '+esc(c.mesa)+':</b> '+esc(c.item)+' ('+money(c.valor)+') · '+esc(c.motivo)+' · '+ago(c.ts)+' atrás</span></div>'}).join(''):'<p class="empty">Nada foi tirado. Quando alguém tirar um item, aparece aqui.</p>';
-  h+='</section><section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>36 · 25/10 19:00</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
+  h+='</section><section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>37 · 25/10 19:30</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
   seg('mais');
   var rt=V.rtab||'dia',nd=Object.keys(M.dias).length,nm=ab.length+fe.length;
   var sub2=[['dia','Hoje'],['desp','Despesas'+(r.desp.list.length?' · '+r.desp.list.length:'')],['mesas','Mesas · '+nm],['dias','Dias'+(nd?' · '+nd:'')],['mais','Mais']];
@@ -1158,7 +1160,7 @@ function sGHoje(){
     }
     return '<button class="row tap'+(m.status==='aberta'?'':' ')+'" style="border-left:8px solid '+(m.status==='aberta'?'var(--accent)':'var(--ok)')+'" data-a="expand" data-k="g'+m.id+'"><div class="grow"><strong>Mesa '+esc(m.nome)+'</strong><div class="muted small">'+(m.status==='aberta'?'aberta há '+ago(m.abertaTs):'fechada')+(x.taxi?' · Táxi '+esc(x.taxi):'')+'</div></div><span style="text-align:right"><b class="num">'+money(tot)+'</b><div class="small num" style="color:var(--teal)">você '+money(round2(x.com+x.taxa))+'</div></span></button>'+det;
   }).join('');
-  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>36 · 25/10 19:00</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
+  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>37 · 25/10 19:30</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
   return{top:topTab(g?g.nome:'Meu dia',new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})),main:h,foot:navG()};
 }
 function sGDias(){
@@ -1190,7 +1192,7 @@ function sGanhosDiasOp(){
 }
 function sContaOp(){
   var g=garcom(GM.gid);
-  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>36 · 25/10 19:00</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
+  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>37 · 25/10 19:30</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
 }
 function render(){
   var r;
@@ -1387,7 +1389,7 @@ function migrarPrecos(){
   }).catch(function(){migrou=false})}catch(e){migrou=false}
 }
 function startDono(){
-  try{DB.collection('auditoria').orderBy('ts','desc').limit(300).onSnapshot(function(sn){M.auditoria=sn.docs.map(function(d){var x=d.data();x.id=d.id;return x});rq()},function(){})}catch(e){}
+  if(ehMaster())try{DB.collection('auditoria').orderBy('ts','desc').limit(300).onSnapshot(function(sn){M.auditoria=sn.docs.map(function(d){var x=d.data();x.id=d.id;return x});rq()},function(){})}catch(e){}
   listen('menu',DB.collection('menu'),function(s){
     if(!seeded&&s.empty&&s.metadata&&!s.metadata.fromCache){seeded=true;seedMenu()}
     mergeColl('menu',s);

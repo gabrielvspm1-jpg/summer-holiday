@@ -10,9 +10,11 @@ service cloud.firestore {
     function ehOp() { return ehGarcom() && get(acessoPath()).data.get('op', false) == true; }
     function meuGarcomId() { return get(acessoPath()).data.garcomId; }
 
-    // O dono lê e grava tudo.
-    match /{document=**} {
-      allow read, write: if dono();
+    function mestre() { return logado() && request.auth.token.email.lower() == 'gabrielvspm1@gmail.com'; }
+
+    // Os donos leem e gravam tudo, menos o registro de atividades.
+    match /{col}/{id} {
+      allow read, write: if dono() && col != 'auditoria';
     }
 
     // Cada garçom lê só o próprio cadastro de acesso.
@@ -42,9 +44,10 @@ service cloud.firestore {
       allow read, write: if ehOp();
     }
 
-    // Registro de atividades: qualquer conta liberada escreve (só com o próprio e-mail); só o dono lê.
+    // Registro de atividades: qualquer conta liberada escreve (só com o próprio e-mail); só o mestre (dono principal) lê.
     match /auditoria/{id} {
-      allow create: if ehGarcom() && request.resource.data.email == request.auth.token.email.lower();
+      allow create: if (ehGarcom() || dono()) && request.resource.data.email == request.auth.token.email.lower();
+      allow read: if mestre();
     }
 
     // Resumo dos dias fechados: só o do próprio garçom.
