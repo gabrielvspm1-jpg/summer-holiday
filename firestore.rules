@@ -42,6 +42,11 @@ service cloud.firestore {
       allow read, write: if ehOp();
     }
 
+    // Registro de atividades: qualquer conta liberada escreve (só com o próprio e-mail); só o dono lê.
+    match /auditoria/{id} {
+      allow create: if ehGarcom() && request.resource.data.email == request.auth.token.email.lower();
+    }
+
     // Resumo dos dias fechados: só o do próprio garçom.
     match /ganhos/{id} {
       allow read: if ehGarcom() && resource.data.garcomId == meuGarcomId();
