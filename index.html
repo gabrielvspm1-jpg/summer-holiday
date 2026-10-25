@@ -150,6 +150,10 @@ html{padding-bottom:0!important}
 .fila .esp.alta{background:var(--bad);color:#fff}
 .fila.ready{border:2px solid var(--ok);border-left:10px solid var(--ok);background:rgba(46,204,113,.14)}
 .mesa.pend{border:2px solid var(--bad)}
+.mesa.nova{animation:novamesa 1s ease-in-out infinite;border-color:var(--teal)}
+.mesa.nova::after{content:'NOVA';position:absolute;top:8px;right:8px;font:800 11px var(--f-display);letter-spacing:.08em;padding:3px 8px;border-radius:999px;background:var(--teal);color:var(--teal-ink)}
+@keyframes novamesa{0%,100%{box-shadow:0 0 0 0 rgba(45,212,191,.7);background:var(--surface)}50%{box-shadow:0 0 0 8px rgba(45,212,191,0);background:rgba(45,212,191,.22)}}
+@media (prefers-reduced-motion:reduce){.mesa.nova{animation:none}}
 .mesa.allok{border-color:var(--ok)}
 .c-bad{color:var(--danger);border-color:var(--danger)}
 
@@ -390,7 +394,7 @@ async function writeNow(path,data){
   }
   return false;
 }
-var SEEN={},seenReady=false,SOM=null;
+var SEEN={},SEENM={},NEWM={},seenReady=false,SOM=null;
 function somOn(){
   if(SOM===null){try{var v=localStorage.getItem('shp-som-v1');SOM=v===null?!GM:v==='1'}catch(e){SOM=!GM}}
   return SOM;
@@ -407,9 +411,10 @@ function bipe(){
 }
 function pedirTelaAcesa(){try{if(navigator.wakeLock&&somOn()&&!WL){navigator.wakeLock.request('screen').then(function(l){WL=l;l.addEventListener&&l.addEventListener('release',function(){WL=null})},function(){})}}catch(e){}}
 function checarNovos(snap){
-  var novos=[],abertasNow={};
+  var novos=[],abertasNow={},novasMesas=[];
   Object.keys(M.mesas).forEach(function(k){
     var m=M.mesas[k];if(m.status!=='aberta')return;
+    if(!SEENM[m.id]){SEENM[m.id]=1;if(seenReady){novasMesas.push(m);NEWM[m.id]=now()}}
     (m.itens||[]).forEach(function(l){
       var prev=SEEN[l.uid];
       if(seenReady&&l.status!=='entregue'&&(prev===undefined||l.qtd>prev))novos.push({mesa:m.nome,nome:l.nome});
@@ -417,7 +422,11 @@ function checarNovos(snap){
     });
   });
   if(snap&&snap.metadata&&!snap.metadata.fromCache)seenReady=true;
-  if(novos.length&&somOn()){bipe();toast('Pedido novo · Mesa '+novos[0].mesa+(novos.length>1?' (+'+(novos.length-1)+')':'')+' · '+novos[0].nome)}
+  if(novasMesas.length){
+    if(somOn())bipe();
+    var m0=novasMesas[0];toast('Mesa nova · Mesa '+m0.nome+(gNome(m0)?' · '+gNome(m0):'')+(novasMesas.length>1?' (+'+(novasMesas.length-1)+')':''));
+    setTimeout(rq,125000);
+  }else if(novos.length&&somOn()){bipe();toast('Pedido novo · Mesa '+novos[0].mesa+(novos.length>1?' (+'+(novos.length-1)+')':'')+' · '+novos[0].nome)}
 }
 function mergeColl(name,snap){
   var o={};
@@ -813,7 +822,7 @@ function sMesas(){
     var old=(now()-m.abertaTs)/MIN>90;
     var pend=np+nf,nent=m.itens.filter(function(l){return l.status==='entregue'}).length;
     var chips=(tNome(m)?'<span class="chip c-taxi">Táxi · '+esc(tNome(m))+'</span>':'')+(pend?'<span class="chip c-wait">'+pend+' não entregue'+(pend>1?'s':'')+'</span>':'')+(nent&&!pend?'<span class="chip c-entregue">✓ tudo entregue</span>':'')+(old?'<span class="chip c-novo">aberta há '+ago(m.abertaTs)+'</span>':'');
-    return '<button class="mesa'+(old?' old':'')+(pend?' pend':nent?' allok':'')+'" style="border-left:8px solid '+(gNome(m)?gCor(m.garcomId):'var(--line)')+'" data-a="abrir-mesa" data-m="'+m.id+'"><span class="ml">Mesa</span><span class="mn">'+esc(m.nome)+'</span>'+(gNome(m)?'<span class="gn" style="color:'+gCor(m.garcomId)+'">'+esc(gNome(m))+'</span>':'<span class="gn none">sem garçom</span>')+'<span class="mt num">'+money(sub(m))+'</span><span class="mi">aberta há '+ago(m.abertaTs)+'</span>'+(chips?'<span class="chips">'+chips+'</span>':'')+'</button>';
+    return '<button class="mesa'+(old?' old':'')+(pend?' pend':nent?' allok':'')+((NEWM[m.id]&&now()-NEWM[m.id]<120000)?' nova':'')+'" style="border-left:8px solid '+(gNome(m)?gCor(m.garcomId):'var(--line)')+'" data-a="abrir-mesa" data-m="'+m.id+'"><span class="ml">Mesa</span><span class="mn">'+esc(m.nome)+'</span>'+(gNome(m)?'<span class="gn" style="color:'+gCor(m.garcomId)+'">'+esc(gNome(m))+'</span>':'<span class="gn none">sem garçom</span>')+'<span class="mt num">'+money(sub(m))+'</span><span class="mi">aberta há '+ago(m.abertaTs)+'</span>'+(chips?'<span class="chips">'+chips+'</span>':'')+'</button>';
   }).join('')+'</div>';
   h+='</section>';
   return{top:topTab('Mesas',''),main:h,foot:navHTML()};
@@ -1021,7 +1030,7 @@ function sHoje(){
   }).join(''):'<p class="empty">Nenhum dia fechado ainda.</p>';
   h+='</section>';seg('dias');h+='<section class="sec"><h2>Itens tirados das mesas</h2>';
   h+=M.log.length?M.log.slice(0,15).map(function(c){return '<div class="alert"><span><b>Mesa '+esc(c.mesa)+':</b> '+esc(c.item)+' ('+money(c.valor)+') · '+esc(c.motivo)+' · '+ago(c.ts)+' atrás</span></div>'}).join(''):'<p class="empty">Nada foi tirado. Quando alguém tirar um item, aparece aqui.</p>';
-  h+='</section><section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>47 · 25/10 17:45</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
+  h+='</section><section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>48 · 25/10 18:00</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
   seg('mais');
   var rt=V.rtab||'dia',nd=Object.keys(M.dias).length,nm=ab.length+fe.length;
   var sub2=[['dia','Hoje'],['desp','Despesas'+(r.desp.list.length?' · '+r.desp.list.length:'')],['mesas','Mesas fechadas · '+fe.length],['dias','Dias'+(nd?' · '+nd:'')],['mais','Mais']];
@@ -1180,7 +1189,7 @@ function sGHoje(){
     }
     return '<button class="row tap'+(m.status==='aberta'?'':' ')+'" style="border-left:8px solid '+(m.status==='aberta'?'var(--accent)':'var(--ok)')+'" data-a="expand" data-k="g'+m.id+'"><div class="grow"><strong>Mesa '+esc(m.nome)+'</strong><div class="muted small">'+(m.status==='aberta'?'aberta há '+ago(m.abertaTs):'fechada')+(x.taxi?' · Táxi '+esc(x.taxi):'')+'</div></div><span style="text-align:right"><b class="num">'+money(tot)+'</b><div class="small num" style="color:var(--teal)">você '+money(round2(x.com+x.taxa))+'</div></span></button>'+det;
   }).join('');
-  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>47 · 25/10 17:45</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
+  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>48 · 25/10 18:00</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
   return{top:topTab(g?g.nome:'Meu dia',new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})),main:h,foot:navG()};
 }
 function sGDias(){
@@ -1212,7 +1221,7 @@ function sGanhosDiasOp(){
 }
 function sContaOp(){
   var g=garcom(GM.gid);
-  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>47 · 25/10 17:45</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
+  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>48 · 25/10 18:00</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
 }
 function render(){
   var r;
@@ -1314,8 +1323,8 @@ document.addEventListener('click',function(e){
       if(abertas().some(function(x){return x.nome.toLowerCase()===nome.toLowerCase()})){toast('A mesa '+nome+' já está aberta');return}
       var gsel2=(GM&&GM.lanca)?garcom(GM.gid):garcom(V.modal.g||'');V.lastG=gsel2?gsel2.id:'';
       var nm={id:gid('m'),nome:nome,abertaTs:now(),status:'aberta',mais10:true,divide:1,itens:[],baixas:[],garcomId:gsel2?gsel2.id:'',garcomNome:gsel2?gsel2.nome:''};
-      M.mesas[nm.id]=nm;saveMesa(nm);audit('Abriu mesa','Mesa '+nm.nome+(nm.garcomNome?' · '+nm.garcomNome:''));V.mesaId=nm.id;V.mesaTab='add';V.modal=null;break;
-    case 'abrir-mesa':V.q='';var qe=document.getElementById('q-mesa');if(qe)qe.value='';var qx=document.getElementById('q-x');if(qx)qx.hidden=true;V.mesaId=d.m;V.mesaTab='add';V.fechando=false;break;
+      SEENM[nm.id]=1;M.mesas[nm.id]=nm;saveMesa(nm);audit('Abriu mesa','Mesa '+nm.nome+(nm.garcomNome?' · '+nm.garcomNome:''));V.mesaId=nm.id;V.mesaTab='add';V.modal=null;break;
+    case 'abrir-mesa':delete NEWM[d.m];V.q='';var qe=document.getElementById('q-mesa');if(qe)qe.value='';var qx=document.getElementById('q-x');if(qx)qx.hidden=true;V.mesaId=d.m;V.mesaTab='add';V.fechando=false;break;
     case 'mesa-cancel':{var mc=mesaPor(V.mesaId);if(mc&&mc.itens.length){toast('Não dá para cancelar: esta mesa já tem itens lançados.');break}if(mc){delete M.mesas[mc.id];saveMesa(mc);audit('Cancelou mesa','Mesa '+mc.nome+' (sem itens)');V.mesaId=null;V.fechando=false;V.pay=null;toast('Mesa '+mc.nome+' cancelada')}break}
     case 'voltar':V.mesaId=null;V.fechando=false;V.pay=null;break;
     case 'mesa-tab':V.mesaTab=d.v;break;
