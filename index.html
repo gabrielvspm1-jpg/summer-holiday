@@ -823,7 +823,7 @@ function sMesa(){
   var m=mesaPor(V.mesaId);
   var qtdMesa={};m.itens.forEach(function(l){qtdMesa[l.itemId]=(qtdMesa[l.itemId]||0)+l.qtd});
   var nitens=m.itens.reduce(function(a,l){return a+l.qtd},0);
-  var h=(GM&&GM.lanca?'':'<button class="gbar'+(gNome(m)?'':' none')+'" style="'+(gNome(m)?'border-left:8px solid '+gCor(m.garcomId)+';border-color:'+gCor(m.garcomId):'')+'" data-a="gmesa"><span class="muted small">Garçom</span><strong'+(gNome(m)?' style="color:'+gCor(m.garcomId)+'"':'')+'>'+esc(gNome(m)||'Sem garçom')+'</strong><span class="trocar">trocar</span></button>')+(M.taxistas.length?'<button class="gbar tbar'+(tNome(m)?' on':'')+'" data-a="tmesa"><span class="muted small">Táxi</span><strong>'+esc(tNome(m)||'Mesa sem táxi')+'</strong><span class="trocar">'+(tNome(m)?'trocar':'marcar')+'</span></button>':'')+'<div class="seg"><button data-a="mesa-tab" data-v="add" aria-pressed="'+(V.mesaTab==='add')+'">Adicionar</button><button data-a="mesa-tab" data-v="conta" aria-pressed="'+(V.mesaTab==='conta')+'">Conta ('+nitens+')</button></div>'+((!m.itens.length&&!(GM&&GM.lanca))?'<button class="btn danger block" style="margin:0 0 10px" data-a="mesa-cancel">Cancelar esta mesa (aberta por engano)</button>':'');
+  var h=(GM&&GM.lanca?'':'<button class="gbar'+(gNome(m)?'':' none')+'" style="'+(gNome(m)?'border-left:8px solid '+gCor(m.garcomId)+';border-color:'+gCor(m.garcomId):'')+'" data-a="gmesa"><span class="muted small">Garçom</span><strong'+(gNome(m)?' style="color:'+gCor(m.garcomId)+'"':'')+'>'+esc(gNome(m)||'Sem garçom')+'</strong><span class="trocar">trocar</span></button>')+(M.taxistas.length?'<button class="gbar tbar'+(tNome(m)?' on':'')+'" data-a="tmesa"><span class="muted small">Táxi</span><strong>'+esc(tNome(m)||'Mesa sem táxi')+'</strong><span class="trocar">'+(tNome(m)?'trocar':'marcar')+'</span></button>':'')+'<div class="seg"><button data-a="mesa-tab" data-v="add" aria-pressed="'+(V.mesaTab==='add')+'">Adicionar</button><button data-a="mesa-tab" data-v="conta" aria-pressed="'+(V.mesaTab==='conta')+'">Conta ('+nitens+')</button></div>'+((!(GM&&GM.lanca))?'<button class="btn danger block" style="margin:0 0 10px" data-a="mesa-cancel"'+(m.itens.length?' style="margin:0 0 10px;opacity:.55"':'')+'>Cancelar mesa (aberta por engano)</button>':'');
   if(V.mesaTab==='add'){
     var tabs=[['top','Mais pedidos']].concat(CATS.map(function(c){return[c,c]}));
     h+='<div class="tabs">'+tabs.map(function(t){return '<button class="tab" data-a="cat" data-v="'+t[0]+'" aria-pressed="'+(V.cat===t[0])+'">'+t[1]+'</button>'}).join('')+'</div>';
@@ -1019,7 +1019,7 @@ function sHoje(){
   }).join(''):'<p class="empty">Nenhum dia fechado ainda.</p>';
   h+='</section>';seg('dias');h+='<section class="sec"><h2>Itens tirados das mesas</h2>';
   h+=M.log.length?M.log.slice(0,15).map(function(c){return '<div class="alert"><span><b>Mesa '+esc(c.mesa)+':</b> '+esc(c.item)+' ('+money(c.valor)+') · '+esc(c.motivo)+' · '+ago(c.ts)+' atrás</span></div>'}).join(''):'<p class="empty">Nada foi tirado. Quando alguém tirar um item, aparece aqui.</p>';
-  h+='</section><section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>45 · 25/10 17:15</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
+  h+='</section><section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>46 · 25/10 17:30</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
   seg('mais');
   var rt=V.rtab||'dia',nd=Object.keys(M.dias).length,nm=ab.length+fe.length;
   var sub2=[['dia','Hoje'],['desp','Despesas'+(r.desp.list.length?' · '+r.desp.list.length:'')],['mesas','Mesas fechadas · '+fe.length],['dias','Dias'+(nd?' · '+nd:'')],['mais','Mais']];
@@ -1178,7 +1178,7 @@ function sGHoje(){
     }
     return '<button class="row tap'+(m.status==='aberta'?'':' ')+'" style="border-left:8px solid '+(m.status==='aberta'?'var(--accent)':'var(--ok)')+'" data-a="expand" data-k="g'+m.id+'"><div class="grow"><strong>Mesa '+esc(m.nome)+'</strong><div class="muted small">'+(m.status==='aberta'?'aberta há '+ago(m.abertaTs):'fechada')+(x.taxi?' · Táxi '+esc(x.taxi):'')+'</div></div><span style="text-align:right"><b class="num">'+money(tot)+'</b><div class="small num" style="color:var(--teal)">você '+money(round2(x.com+x.taxa))+'</div></span></button>'+det;
   }).join('');
-  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>45 · 25/10 17:15</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
+  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>46 · 25/10 17:30</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
   return{top:topTab(g?g.nome:'Meu dia',new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})),main:h,foot:navG()};
 }
 function sGDias(){
@@ -1210,7 +1210,7 @@ function sGanhosDiasOp(){
 }
 function sContaOp(){
   var g=garcom(GM.gid);
-  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>45 · 25/10 17:15</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
+  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>46 · 25/10 17:30</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
 }
 function render(){
   var r;
@@ -1314,7 +1314,7 @@ document.addEventListener('click',function(e){
       var nm={id:gid('m'),nome:nome,abertaTs:now(),status:'aberta',mais10:true,divide:1,itens:[],baixas:[],garcomId:gsel2?gsel2.id:'',garcomNome:gsel2?gsel2.nome:''};
       M.mesas[nm.id]=nm;saveMesa(nm);audit('Abriu mesa','Mesa '+nm.nome+(nm.garcomNome?' · '+nm.garcomNome:''));V.mesaId=nm.id;V.mesaTab='add';V.modal=null;break;
     case 'abrir-mesa':V.q='';var qe=document.getElementById('q-mesa');if(qe)qe.value='';var qx=document.getElementById('q-x');if(qx)qx.hidden=true;V.mesaId=d.m;V.mesaTab='add';V.fechando=false;break;
-    case 'mesa-cancel':{var mc=mesaPor(V.mesaId);if(mc&&!mc.itens.length){delete M.mesas[mc.id];saveMesa(mc);audit('Cancelou mesa','Mesa '+mc.nome+' (sem itens)');V.mesaId=null;V.fechando=false;V.pay=null;toast('Mesa '+mc.nome+' cancelada')}break}
+    case 'mesa-cancel':{var mc=mesaPor(V.mesaId);if(mc&&mc.itens.length){toast('Não dá para cancelar: esta mesa já tem itens lançados.');break}if(mc){delete M.mesas[mc.id];saveMesa(mc);audit('Cancelou mesa','Mesa '+mc.nome+' (sem itens)');V.mesaId=null;V.fechando=false;V.pay=null;toast('Mesa '+mc.nome+' cancelada')}break}
     case 'voltar':V.mesaId=null;V.fechando=false;V.pay=null;break;
     case 'mesa-tab':V.mesaTab=d.v;break;
     case 'cat':V.cat=d.v;break;
