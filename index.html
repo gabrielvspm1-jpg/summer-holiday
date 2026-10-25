@@ -1314,7 +1314,7 @@ function aplicarPrecos(){
   return n;
 }
 function migrarPrecos(){
-  DB.doc('config/migracoes').get().then(function(sn){
+  try{DB.doc('config/migracoes').get().then(function(sn){
     var d=sn.exists?sn.data():{},mudou=false;
     if(!d.precos2410b){aplicarPrecos();d.precos2410b=true;mudou=true}
     if(!d.caipe2510){
@@ -1322,7 +1322,7 @@ function migrarPrecos(){
       d.caipe2510=true;mudou=true;
     }
     if(mudou)saveDoc('config/migracoes',function(){return d});
-  }).catch(function(){migrou=false});
+  }).catch(function(){migrou=false})}catch(e){migrou=false}
 }
 function startDono(){
   listen('menu',DB.collection('menu'),function(s){
