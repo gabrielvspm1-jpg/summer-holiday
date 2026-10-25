@@ -4,7 +4,7 @@ service cloud.firestore {
 
     function logado() { return request.auth != null && request.auth.token.email != null; }
     // Dono: coloque aqui o(s) e-mail(s) do dono, sempre em minúsculas.
-    function dono() { return logado() && request.auth.token.email.lower() in ['gabrielvspm1@gmail.com']; }
+    function dono() { return logado() && request.auth.token.email.lower() in ['gabrielvspm1@gmail.com', 'diego.meloferreira22@gmail.com', 'willianvspm@gmail.com']; }
     function acessoPath() { return /databases/$(database)/documents/acessos/$(request.auth.token.email.lower()); }
     function ehGarcom() { return logado() && exists(acessoPath()); }
     function ehOp() { return ehGarcom() && get(acessoPath()).data.get('op', false) == true; }
