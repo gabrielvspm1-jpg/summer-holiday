@@ -677,13 +677,13 @@ function resultadoHTML(r,titulo){
     '<div class="totalbar" style="margin-top:8px"><span class="muted">Líquido</span><b class="num" style="font-size:30px;color:'+(neg?'var(--danger)':'var(--ok)')+'">'+money(liq)+'</b></div></div>';
 }
 function resumoDia(){
-  var f=fechadas(),porForma={},top={},total=0,taxa=0;
+  var f=fechadas(),porForma={},top={},total=0,taxa=0,qPet=0,qAlm=0;
   f.forEach(function(m){
     var c=calc(m);total+=m.total;taxa+=m.total-c.sub;
     porForma[m.pagamento]=(porForma[m.pagamento]||0)+m.total;
-    m.itens.forEach(function(l){top[l.nome]=(top[l.nome]||0)+l.qtd});
+    m.itens.forEach(function(l){top[l.nome]=(top[l.nome]||0)+l.qtd;var it=item(l.itemId),ct=it?it.cat:(/P\/\d/i.test(l.nome)?'Almoços':'');if(ct==='Petiscos')qPet+=l.qtd;else if(ct==='Almoços')qAlm+=l.qtd});
   });
-  var o={total:round2(total),taxa:round2(taxa),nMesas:f.length,porForma:porForma,
+  var o={qPet:qPet,qAlm:qAlm,total:round2(total),taxa:round2(taxa),nMesas:f.length,porForma:porForma,
     top:Object.keys(top).map(function(k){return{nome:k,qtd:top[k]}}).sort(function(a,b){return b.qtd-a.qtd}).slice(0,5),
     abertas:abertas(),garcons:comissaoDia(),taxis:taxistaDia(),desp:despesasDia()};
   o.liquido=round2(o.total-o.garcons.total-o.taxis.total-o.desp.total);
@@ -695,7 +695,7 @@ async function fecharDia(){
   var snap=its.map(function(x){return{id:x.id,nome:x.nome,qtd:restam(x.id)}});
   var f=fechadas();
   V.modal=null;toast('Fechando o dia…');
-  var ok=await writeNow('dias/'+dia,{ts:now(),total:r.total,taxa:r.taxa,nMesas:r.nMesas,porForma:r.porForma,top:r.top,
+  var ok=await writeNow('dias/'+dia,{ts:now(),total:r.total,taxa:r.taxa,nMesas:r.nMesas,qPet:r.qPet,qAlm:r.qAlm,porForma:r.porForma,top:r.top,
     estoque:snap.map(function(s){return{nome:s.nome,qtd:s.qtd}}),abertas:r.abertas.map(function(m){return m.nome}),
     garcons:r.garcons.list.filter(function(g){return g.total>0}).map(function(g){return{nome:g.nome,total:g.total,com:g.com,taxa:g.taxa,linhas:g.linhas.map(function(l){return{k:l.k,qtd:l.qtd,total:l.total}})}}),
     garconsTotal:r.garcons.total,taxis:r.taxis.list.filter(function(t){return t.total>0}).map(function(t){return{nome:t.nome,nMesas:t.nMesas,total:t.total}}),taxisTotal:r.taxis.total,despesas:r.desp.list.map(function(d){return{desc:d.desc,valor:d.valor,tipo:d.tipo||'gasto'}}),despesasTotal:r.desp.total,diariasTotal:r.desp.diarias,liquido:r.liquido});
@@ -981,6 +981,7 @@ function sHoje(){
   function seg(k){P[k]=(P[k]||'')+h;h=''}
   var h='<section class="sec"><div class="kpi"><div class="k">Vendido (mesas fechadas)</div><div class="v num">'+money(r.total)+'</div><div class="muted small">'+r.nMesas+' mesa(s) fechada(s)</div></div>'+
     '<div class="grid2"><div class="kpi"><div class="k">Taxa de 10%</div><div class="v sm num">'+money(r.taxa)+'</div></div><div class="kpi"><div class="k">Abertas agora</div><div class="v sm num">'+ab.length+'</div><div class="muted small num">'+money(totalAb)+'</div></div></div></section>';
+  h+='<section class="sec"><h2>Porções e almoços vendidos</h2><div class="grid2"><div class="kpi"><div class="k">Petiscos</div><div class="v sm num">'+r.qPet+'</div></div><div class="kpi"><div class="k">Almoços</div><div class="v sm num">'+r.qAlm+'</div></div></div><div class="sumrow" style="margin-top:8px"><span>Total de petiscos + almoços</span><b class="num">'+(r.qPet+r.qAlm)+'</b></div><p class="muted small">Conta só as mesas já fechadas.</p></section>';
   h+='<section class="sec">'+resultadoHTML(r,'Resultado do dia')+'</section>';seg('dia');
   h+='<section class="sec"><h2>Despesas do dia <span class="count">'+r.desp.list.length+'</span></h2>';
   h+=r.desp.list.length?r.desp.list.map(function(d){return '<div class="row"><div class="grow"><strong>'+esc(d.desc)+'</strong><div class="muted small">'+new Date(d.ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</div></div><b class="num">'+money(d.valor)+'</b><button class="btn sm danger" data-a="desp-del" data-d="'+d.id+'" aria-label="Apagar despesa">Apagar</button></div>'}).join(''):'<p class="empty">Nenhum gasto lançado. Lance o que você gastou para abrir o quiosque.</p>';
@@ -1008,6 +1009,7 @@ function sHoje(){
       det='<div class="card">'+(d.liquido!=null?'<div class="sumrow"><span>Bruto</span><b class="num">'+money(d.total)+'</b></div><div class="sumrow"><span>− Garçons</span><b class="num">'+money(d.garconsTotal||0)+'</b></div>'+(d.taxisTotal?'<div class="sumrow"><span>− Taxistas</span><b class="num">'+money(d.taxisTotal)+'</b></div>'+(d.taxis||[]).map(function(t){return '<div class="sumrow muted"><span>&nbsp;&nbsp;'+esc(t.nome)+' · '+t.nMesas+' mesa'+(t.nMesas>1?'s':'')+'</span><b class="num">'+money(t.total)+'</b></div>'}).join(''):'')+(d.despesas||[]).map(function(x){return '<div class="sumrow"><span>− '+esc(x.desc)+'</span><b class="num">'+money(x.valor)+'</b></div>'}).join('')+'<div class="sumrow"><span><b>Líquido</b></span><b class="num">'+money(d.liquido)+'</b></div><hr style="border:0;border-top:1px solid var(--line);margin:8px 0">':'')+'<div class="sumrow"><span>Mesas</span><b>'+d.nMesas+'</b></div><div class="sumrow"><span>Taxa de 10%</span><b class="num">'+money(d.taxa)+'</b></div>'+
         Object.keys(pf).map(function(f){return '<div class="sumrow"><span>'+esc(f)+'</span><b class="num">'+money(pf[f])+'</b></div>'}).join('')+
         (d.garcons||[]).map(function(g){return '<div class="sumrow"><span>Garçom '+esc(g.nome)+'</span><b class="num">'+money(g.total)+'</b></div>'}).join('')+
+        (d.qPet!=null?'<div class="sumrow"><span>Petiscos vendidos</span><b>'+d.qPet+'</b></div><div class="sumrow"><span>Almoços vendidos</span><b>'+d.qAlm+'</b></div><div class="sumrow"><span>Petiscos + almoços</span><b>'+(d.qPet+d.qAlm)+'</b></div>':'')+
         (d.top||[]).map(function(t){return '<div class="sumrow"><span>'+esc(t.nome)+'</span><b>'+t.qtd+' un.</b></div>'}).join('')+
         (d.estoque&&d.estoque.length?'<p class="muted small" style="margin-top:8px">Sobrou: '+d.estoque.map(function(e){return esc(e.nome)+' '+e.qtd}).join(' · ')+'</p>':'')+
         (d.abertas&&d.abertas.length?'<p class="warn" style="margin-top:8px">Ficaram abertas: '+d.abertas.map(esc).join(', ')+'</p>':'')+
@@ -1017,7 +1019,7 @@ function sHoje(){
   }).join(''):'<p class="empty">Nenhum dia fechado ainda.</p>';
   h+='</section>';seg('dias');h+='<section class="sec"><h2>Itens tirados das mesas</h2>';
   h+=M.log.length?M.log.slice(0,15).map(function(c){return '<div class="alert"><span><b>Mesa '+esc(c.mesa)+':</b> '+esc(c.item)+' ('+money(c.valor)+') · '+esc(c.motivo)+' · '+ago(c.ts)+' atrás</span></div>'}).join(''):'<p class="empty">Nada foi tirado. Quando alguém tirar um item, aparece aqui.</p>';
-  h+='</section><section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>41 · 25/10 21:15</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
+  h+='</section><section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>42 · 25/10 16:30</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
   seg('mais');
   var rt=V.rtab||'dia',nd=Object.keys(M.dias).length,nm=ab.length+fe.length;
   var sub2=[['dia','Hoje'],['desp','Despesas'+(r.desp.list.length?' · '+r.desp.list.length:'')],['mesas','Mesas fechadas · '+fe.length],['dias','Dias'+(nd?' · '+nd:'')],['mais','Mais']];
@@ -1176,7 +1178,7 @@ function sGHoje(){
     }
     return '<button class="row tap'+(m.status==='aberta'?'':' ')+'" style="border-left:8px solid '+(m.status==='aberta'?'var(--accent)':'var(--ok)')+'" data-a="expand" data-k="g'+m.id+'"><div class="grow"><strong>Mesa '+esc(m.nome)+'</strong><div class="muted small">'+(m.status==='aberta'?'aberta há '+ago(m.abertaTs):'fechada')+(x.taxi?' · Táxi '+esc(x.taxi):'')+'</div></div><span style="text-align:right"><b class="num">'+money(tot)+'</b><div class="small num" style="color:var(--teal)">você '+money(round2(x.com+x.taxa))+'</div></span></button>'+det;
   }).join('');
-  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>41 · 25/10 21:15</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
+  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>42 · 25/10 16:30</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
   return{top:topTab(g?g.nome:'Meu dia',new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})),main:h,foot:navG()};
 }
 function sGDias(){
@@ -1208,7 +1210,7 @@ function sGanhosDiasOp(){
 }
 function sContaOp(){
   var g=garcom(GM.gid);
-  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>41 · 25/10 21:15</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
+  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>42 · 25/10 16:30</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
 }
 function render(){
   var r;
