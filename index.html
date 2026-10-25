@@ -63,7 +63,7 @@ p{margin:0}
 #sbar input::-webkit-search-cancel-button{display:none}
 #q-x{position:absolute;right:4px;top:14px;width:44px;height:44px;border-radius:22px;border:0;background:transparent;color:var(--muted);font-size:28px;line-height:1}
 #main{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:16px 0 24px;-webkit-overflow-scrolling:touch}
-#foot{flex:none;padding:10px 0 12px;border-top:1px solid var(--line)}
+#foot{flex:none;padding:8px 0 10px;border-top:1px solid var(--line);background:var(--surface)}
 #foot:empty{display:none}
 .sync{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--muted);white-space:nowrap}
 .sync i{width:8px;height:8px;border-radius:4px;background:var(--teal)}
@@ -210,12 +210,18 @@ p{margin:0}
 .alert b{color:var(--amber)}
 .ok{color:var(--teal);font-weight:700}
 
-.nav{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
-.nav button{position:relative;min-height:52px;border:0;background:transparent;font-size:12px;font-weight:700;color:var(--muted);border-radius:12px}
-.nav button[aria-current=page]{background:var(--surface-2);color:var(--fg);box-shadow:inset 0 -3px 0 var(--accent)}
-.nav button.ganho{background:var(--ok);color:var(--ok-ink);font-weight:800}
-.nav button.ganho[aria-current=page]{background:var(--ok);color:var(--ok-ink);box-shadow:inset 0 -4px 0 var(--ok-ink)}
-.nav .bd{position:absolute;top:4px;left:calc(50% + 8px);min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--accent);color:var(--accent-ink);font-size:12px;font-weight:800;display:grid;place-items:center}
+.nav{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:2px;padding:0 6px}
+.nav button{position:relative;min-height:60px;border:0;background:transparent;color:var(--muted);border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:6px 2px 4px;font-size:11.5px;font-weight:700;letter-spacing:.01em}
+.nav .ni{display:grid;place-items:center;width:52px;height:30px;border-radius:15px;transition:background .15s,color .15s}
+.nav .ni svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.nav .nl{white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.nav button[aria-current=page]{color:var(--fg);font-weight:800}
+.nav button[aria-current=page] .ni{background:var(--accent);color:var(--accent-ink)}
+.nav button.ganho{color:var(--ok)}
+.nav button.ganho .ni{background:rgba(46,204,113,.18);color:var(--ok)}
+.nav button.ganho[aria-current=page]{color:var(--ok)}
+.nav button.ganho[aria-current=page] .ni{background:var(--ok);color:var(--ok-ink)}
+.nav .bd{position:absolute;top:3px;left:calc(50% + 8px);min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--bad);color:#fff;font-size:12px;font-weight:800;display:grid;place-items:center;border:2px solid var(--bg)}
 
 .estsum{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
 .estsum>div{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
@@ -725,11 +731,16 @@ function chip(st){return '<span class="chip c-'+st+'">'+ST[st]+'</span>'}
 function topTab(titulo,subtitulo){
   return '<img class="mark" src="'+LOGO+'" alt="">'+'<div class="who"><strong>'+esc(titulo)+'</strong>'+(subtitulo?'<span class="muted small">'+subtitulo+'</span>':'')+'</div><span class="grow"></span>'+syncHTML();
 }
+var ICON={mesas:'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',fila:'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',estoque:'M21 8l-9-5-9 5v8l9 5 9-5zM3 8l9 5 9-5M12 13v8',cardapio:'M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5M8 7h8M8 11h6',gestao:'M4 20V11M10 20V4M16 20v-7M22 20H2',ganhos:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM14.6 9.3c-.4-.8-1.3-1.3-2.6-1.3-1.4 0-2.5.7-2.5 1.8 0 2.6 5.2 1.2 5.2 3.8 0 1.1-1.1 1.9-2.7 1.9-1.3 0-2.3-.5-2.7-1.4M12 6.5V8M12 16v1.5',conta:'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',dias:'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4'};
+function navBtn(t,ic,cls,cur,bd){
+  return '<button data-a="tab" data-v="'+t[0]+'"'+(cls?' class="'+cls+'"':'')+(cur?' aria-current="page"':'')+'><span class="ni"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="'+ICON[ic]+'"/></svg></span><span class="nl">'+t[1]+'</span>'+(bd||'')+'</button>';
+}
 function navHTML(){
   var f=filaItens(),nf=f.pr.length+f.q.length;
   var tabs=GM?[['mesas','Mesas'],['fila','Fila'],['estoque','Estoque'],['ganhos','Meus ganhos'],['conta','Conta']]:[['mesas','Mesas'],['fila','Fila'],['estoque','Estoque'],['cardapio','Cardápio'],['hoje','Gestão']];
   return '<nav class="nav" aria-label="Seções">'+tabs.map(function(t){
-    return '<button data-a="tab" data-v="'+t[0]+'"'+(t[0]==='ganhos'?' class="ganho"':'')+((V.tab===t[0]||(t[0]==='ganhos'&&V.tab==='ganhosdias'))?' aria-current="page"':'')+'>'+t[1]+(t[0]==='fila'&&nf?'<span class="bd">'+nf+'</span>':'')+'</button>';
+    var ic=t[0]==='hoje'?'gestao':t[0];
+    return navBtn(t,ic,t[0]==='ganhos'?'ganho':'',(V.tab===t[0]||(t[0]==='ganhos'&&V.tab==='ganhosdias')),t[0]==='fila'&&nf?'<span class="bd">'+nf+'</span>':'');
   }).join('')+'</nav>';
 }
 function sFatal(){
@@ -933,7 +944,7 @@ function sHoje(){
   }).join(''):'<p class="empty">Nenhum dia fechado ainda.</p>';
   h+='</section><section class="sec"><h2>Itens tirados das mesas</h2>';
   h+=M.log.length?M.log.slice(0,15).map(function(c){return '<div class="alert"><span><b>Mesa '+esc(c.mesa)+':</b> '+esc(c.item)+' ('+money(c.valor)+') · '+esc(c.motivo)+' · '+ago(c.ts)+' atrás</span></div>'}).join(''):'<p class="empty">Nada foi tirado. Quando alguém tirar um item, aparece aqui.</p>';
-  h+='</section><section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>31 · 25/10 16:50</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
+  h+='</section><section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>32 · 25/10 17:10</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
   return{top:topTab('Gestão',new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})),main:h,foot:navHTML()};
 }
 
@@ -1052,7 +1063,7 @@ function ganhoMesa(m){
 }
 function navG(){
   return '<nav class="nav" aria-label="Seções">'+[['hoje','Hoje'],['dias','Dias anteriores']].map(function(t){
-    return '<button data-a="tab" data-v="'+t[0]+'"'+(V.tab===t[0]?' aria-current="page"':'')+'>'+t[1]+'</button>';
+    return navBtn(t,t[0]==='hoje'?'ganhos':'dias','',V.tab===t[0]);
   }).join('')+'</nav>';
 }
 function itensG(m){
@@ -1088,7 +1099,7 @@ function sGHoje(){
     }
     return '<button class="row tap'+(m.status==='aberta'?'':' ')+'" style="border-left:8px solid '+(m.status==='aberta'?'var(--accent)':'var(--ok)')+'" data-a="expand" data-k="g'+m.id+'"><div class="grow"><strong>Mesa '+esc(m.nome)+'</strong><div class="muted small">'+(m.status==='aberta'?'aberta há '+ago(m.abertaTs):'fechada')+(x.taxi?' · Táxi '+esc(x.taxi):'')+'</div></div><span style="text-align:right"><b class="num">'+money(tot)+'</b><div class="small num" style="color:var(--teal)">você '+money(round2(x.com+x.taxa))+'</div></span></button>'+det;
   }).join('');
-  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>31 · 25/10 16:50</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
+  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>32 · 25/10 17:10</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
   return{top:topTab(g?g.nome:'Meu dia',new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})),main:h,foot:navG()};
 }
 function sGDias(){
@@ -1120,7 +1131,7 @@ function sGanhosDiasOp(){
 }
 function sContaOp(){
   var g=garcom(GM.gid);
-  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>31 · 25/10 16:50</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
+  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>32 · 25/10 17:10</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
 }
 function render(){
   var r;
