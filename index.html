@@ -897,8 +897,13 @@ function sBalcao(){
   ordem.sort(function(a,b){return por[b].qtd-por[a].qtd});
   h+='<section class="card" style="margin-bottom:14px"><div class="row" style="padding:0 0 8px;border:0;align-items:baseline"><h2 class="grow" style="margin:0">Saiu hoje no balcão</h2><span class="muted small num">'+qv+' bebida'+(qv===1?'':'s')+'</span></div>';
   h+=ordem.length?ordem.map(function(n){var e=por[n];return '<div class="sumrow" style="align-items:center"><span class="grow"><strong class="num">'+e.qtd+'×</strong> '+esc(e.nome)+'</span><b class="num">'+money(round2(e.valor))+'</b></div>'}).join(''):'<p class="muted small" style="margin:0 0 6px">Nada vendido ainda hoje.</p>';
-  h+='<div class="totalbar" style="padding-top:10px"><span class="muted">Total do balcão</span><b class="num">'+money(round2(tv))+'</b></div>';
-  if(!GM){var cb=0,cn={};vendas.forEach(function(m){var c=comOf(m);if(c&&c.total>0){cb=round2(cb+c.total);cn[c.nome]=1}});if(cb>0)h+='<div class="sumrow" style="border:0;padding-bottom:0"><span class="muted">Comissão ('+Object.keys(cn).map(esc).join(', ')+')</span><b class="num">− '+money(cb)+'</b></div><div class="sumrow" style="border:0"><span class="muted">Sobra do balcão</span><b class="num">'+money(round2(tv-cb))+'</b></div>'}
+  if(GM){h+='<div class="totalbar" style="padding-top:10px"><span class="muted">Total do balcão</span><b class="num">'+money(round2(tv))+'</b></div>'}
+  else{
+    var cb=0,cn={};vendas.forEach(function(m){var c=comOf(m);if(c&&c.total>0){cb=round2(cb+c.total);cn[c.nome]=1}});
+    h+='<div class="sumrow" style="border-bottom:0;padding-bottom:4px"><span class="muted">Bruto (vendido)</span><b class="num">'+money(round2(tv))+'</b></div>';
+    h+='<div class="sumrow" style="border-bottom:0;padding:4px 0"><span class="muted">− Comissão'+(Object.keys(cn).length?' ('+Object.keys(cn).map(esc).join(', ')+')':'')+'</span><b class="num">'+money(cb)+'</b></div>';
+    h+='<div class="totalbar" style="padding-top:8px;border-top:1px solid var(--line)"><span class="muted">Líquido</span><b class="num" style="color:var(--ok)">'+money(round2(tv-cb))+'</b></div>';
+  }
   h+='</section>';
   if(!lista.length)h+='<p class="empty">Nenhuma bebida no cardápio.</p>';
   ['Bebidas','Drinks'].forEach(function(c){
@@ -1098,7 +1103,7 @@ function sHoje(){
   h+='</section>';seg('dias');h+='<section class="sec"><h2>Itens tirados das mesas</h2>';
   h+=M.log.length?M.log.slice(0,15).map(function(c){return '<div class="alert"><span><b>Mesa '+esc(c.mesa)+':</b> '+esc(c.item)+' ('+money(c.valor)+') · '+esc(c.motivo)+' · '+ago(c.ts)+' atrás</span></div>'}).join(''):'<p class="empty">Nada foi tirado. Quando alguém tirar um item, aparece aqui.</p>';
   h+='</section>';
-  var CTA='<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>57 · 31/10 23:00</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
+  var CTA='<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>58 · 31/10 23:20</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
   seg('mais');
   var rt=V.rtab||'dia',nd=Object.keys(M.dias).length,nm=ab.length+fe.length;
   var sub2=[['dia','Hoje',rt==='dia','hoje'],['mesas','Fechadas · '+fe.length,rt==='mesas','fechadas'],['dias','Dias'+(nd?' · '+nd:''),rt==='dias'],['mais','Mais',rt==='mais']];
@@ -1258,7 +1263,7 @@ function sGHoje(){
     }
     return '<button class="row tap'+(m.status==='aberta'?'':' ')+'" style="border-left:8px solid '+(m.status==='aberta'?'var(--accent)':'var(--ok)')+'" data-a="expand" data-k="g'+m.id+'"><div class="grow"><strong>Mesa '+esc(m.nome)+'</strong><div class="muted small">'+(m.status==='aberta'?'aberta há '+ago(m.abertaTs):'fechada')+(x.taxi?' · Táxi '+esc(x.taxi):'')+'</div></div><span style="text-align:right"><b class="num">'+money(tot)+'</b><div class="small num" style="color:var(--teal)">você '+money(round2(x.com+x.taxa))+'</div></span></button>'+det;
   }).join('');
-  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>57 · 31/10 23:00</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
+  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>58 · 31/10 23:20</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
   return{top:topTab(g?g.nome:'Meu dia',new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})),main:h,foot:navG()};
 }
 function sGDias(){
@@ -1290,7 +1295,7 @@ function sGanhosDiasOp(){
 }
 function sContaOp(){
   var g=garcom(GM.gid);
-  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>57 · 31/10 23:00</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
+  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>58 · 31/10 23:20</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
 }
 function render(){
   var r;
