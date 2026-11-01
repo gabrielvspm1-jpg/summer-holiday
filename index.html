@@ -471,7 +471,7 @@ function saveMesa(m){saveDoc('mesas/'+m.id,function(){return M.mesas[m.id]?clone
 function saveEstoqueDoc(id){saveDoc('estoque/'+id,function(){return M.estoque[id]?clone(M.estoque[id]):null})}
 function saveMenuDoc(id){saveDoc('menu/'+id,function(){return M.menu[id]?clone(M.menu[id]):null})}
 var LASTEQ='';
-function equipeData(){return{garcons:M.garcons.map(function(g){return{id:g.id,nome:g.nome,cor:gCor(g.id)}}),taxistas:M.taxistas.map(function(t){return{id:t.id,nome:t.nome}})}}
+function equipeData(){return{garcons:M.garcons.map(function(g){return{id:g.id,nome:g.nome,cor:gCor(g.id),balcao:!!g.balcao}}),taxistas:M.taxistas.map(function(t){return{id:t.id,nome:t.nome}})}}
 function saveEquipe(){if(GM)return;var j=JSON.stringify(equipeData());if(j===LASTEQ)return;LASTEQ=j;saveDoc('config/equipe',function(){return equipeData()})}
 function saveTaxistas(){saveDoc('config/taxistas',function(){return{list:clone(M.taxistas)}});saveEquipe()}
 function saveGarcons(){saveDoc('config/garcons',function(){return{list:clone(M.garcons)}});saveEquipe()}
@@ -579,7 +579,7 @@ function fecharMesa(){
   saveMesa(m);audit('Fechou mesa','Mesa '+m.nome+' · '+money(c.total)+' · '+m.pagamento);toast('Mesa '+m.nome+' fechada · '+money(c.total));
 }
 /* ---------- comissao dos garcons ---------- */
-var REGRAS=[['petisco','Petisco'],['caipe','Caipirinha, caipvodka e todo drink do balcão'],['p2','Almoço p/ 2'],['p3','Almoço p/ 3'],['p4','Almoço p/ 4'],['p5','Almoço p/ 5'],['p6','Almoço p/ 6']];
+var REGRAS=[['petisco','Petisco'],['caipe','Caipirinha (e caipvodka)'],['p2','Almoço p/ 2'],['p3','Almoço p/ 3'],['p4','Almoço p/ 4'],['p5','Almoço p/ 5'],['p6','Almoço p/ 6'],['balcao','Drink vendido no balcão']];
 function rotulo(k){var r=REGRAS.filter(function(x){return x[0]===k})[0];return r?r[1]:k}
 function garcom(id){return M.garcons.filter(function(g){return g.id===id})[0]}
 /* ---------- taxistas: ganham % do total da mesa (ja com os 10%); nessa mesa o garcom nao fica com os 10% ---------- */
@@ -623,7 +623,7 @@ function gDot(id){return '<span class="gdot" style="background:'+gCor(id)+'"></s
 function gNome(m){var g=garcom(m.garcomId);return g?g.nome:(m.garcomNome||'')}
 function regraDe(l,m){
   var it=item(l.itemId),cat=it?it.cat:(/P\/\d/i.test(l.nome)?'Almoços':'');
-  if(m&&m.balcao)return cat==='Drinks'?'caipe':null;
+  if(m&&m.balcao)return cat==='Drinks'?'balcao':null;
   if(cat==='Petiscos')return 'petisco';
   if(/^caip/i.test(l.nome))return 'caipe';
   if(cat==='Almoços'){var x=/P\/(\d)/i.exec(l.nome);if(x)return 'p'+x[1]}
@@ -674,7 +674,9 @@ function saveGarcom(){
   var oldEmail=g?(g.email||''):'';
   var cor=V.modal.cor||(g&&g.cor)||(g?gCor(g.id):GCORES[M.garcons.length%GCORES.length]);
   var gid3;
-  if(g){g.nome=nome;g.regras=regras;g.cor=cor;g.email=email;g.op=op;g.lanca=lanca;gid3=g.id}else{gid3=gid('g');M.garcons.push({id:gid3,nome:nome,regras:regras,cor:cor,email:email,op:op,lanca:lanca})}
+  var balc=val('g-balcao')==='sim';
+  if(g){g.nome=nome;g.regras=regras;g.cor=cor;g.email=email;g.op=op;g.lanca=lanca;g.balcao=balc;gid3=g.id}else{gid3=gid('g');M.garcons.push({id:gid3,nome:nome,regras:regras,cor:cor,email:email,op:op,lanca:lanca,balcao:balc})}
+  if(balc)M.garcons.forEach(function(x){if(x.id!==gid3)x.balcao=false});
   saveGarcons();syncAcesso(gid3,email,oldEmail);audit('Garçom','Salvou '+nome+(email?' · '+email:'')+(op?' · acesso de caixa':lanca?' · lança só as mesas dele':''));toast('Garçom salvo');return true;
 }
 /* ---------- despesas do dia ---------- */
@@ -923,8 +925,8 @@ function sBalcao(){
 function balPagar(pay){
   var ks=Object.keys(BAL).filter(function(k){return BAL[k]>0&&item(k)});if(!ks.length)return;
   var t=now(),itens=ks.map(function(k){var it=item(k);return{uid:gid('l'),itemId:k,nome:it.nome,preco:it.preco,qtd:BAL[k],status:'entregue',fluxo:it.fluxo,ts:t,tsStatus:t}});
-  var gg=GM&&GM.gid?garcom(GM.gid):null;
-  var m={id:gid('m'),nome:'Balcão',balcao:true,abertaTs:t,fechadaTs:t,status:'fechada',mais10:false,divide:1,itens:itens,baixas:[],garcomId:gg?gg.id:(GM&&GM.gid)||'',garcomNome:gg?gg.nome:'',pagamento:pay,total:0};
+  var gg=M.garcons.filter(function(x){return x.balcao})[0]||null;
+  var m={id:gid('m'),nome:'Balcão',balcao:true,abertaTs:t,fechadaTs:t,status:'fechada',mais10:false,divide:1,itens:itens,baixas:[],garcomId:gg?gg.id:'',garcomNome:gg?gg.nome:'',pagamento:pay,total:0};
   m.total=round2(itens.reduce(function(a,l){return a+l.preco*l.qtd},0));
   if(GM)m.pendente=true;else if(m.garcomId)fixComissao(m);
   M.mesas[m.id]=m;saveMesa(m);BAL={};BALDEL=null;
@@ -1096,7 +1098,7 @@ function sHoje(){
   h+='</section>';seg('dias');h+='<section class="sec"><h2>Itens tirados das mesas</h2>';
   h+=M.log.length?M.log.slice(0,15).map(function(c){return '<div class="alert"><span><b>Mesa '+esc(c.mesa)+':</b> '+esc(c.item)+' ('+money(c.valor)+') · '+esc(c.motivo)+' · '+ago(c.ts)+' atrás</span></div>'}).join(''):'<p class="empty">Nada foi tirado. Quando alguém tirar um item, aparece aqui.</p>';
   h+='</section>';
-  var CTA='<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>56 · 31/10 22:40</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
+  var CTA='<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>57 · 31/10 23:00</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
   seg('mais');
   var rt=V.rtab||'dia',nd=Object.keys(M.dias).length,nm=ab.length+fe.length;
   var sub2=[['dia','Hoje',rt==='dia','hoje'],['mesas','Fechadas · '+fe.length,rt==='mesas','fechadas'],['dias','Dias'+(nd?' · '+nd:''),rt==='dias'],['mais','Mais',rt==='mais']];
@@ -1129,7 +1131,7 @@ function modalHTML(){
   }
   if(M2.type==='garcom'){
     var novoG=M2.id==='new',gg2=novoG?{nome:'',regras:{}}:(garcom(M2.id)||{nome:'',regras:{}});
-    return '<div class="sheet"><h2>'+(novoG?'Novo garçom':'Editar garçom')+'</h2><label class="f"><span>Nome</span><input id="g-nome" value="'+esc(gg2.nome)+'"></label><label class="f"><span>E-mail para ele entrar no app (opcional)</span><input id="g-email" type="email" inputmode="email" autocapitalize="off" autocorrect="off" value="'+esc(gg2.email||'')+'" placeholder="garcom@email.com"></label><label class="f"><span>O que ele pode fazer no app</span><select id="g-nivel">'+[['ver','Só consultar as mesas e os ganhos dele'],['lanca','Lançar e fechar só as mesas dele'],['caixa','Acesso de caixa: todas as mesas (sem Gestão)']].map(function(o){var cur=gg2.op?'caixa':gg2.lanca?'lanca':'ver';return '<option value="'+o[0]+'"'+(cur===o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select></label><p class="muted small" style="margin-top:12px">Cor dele</p><div class="swatches">'+GCORES.map(function(c){var cur=M2.cor||gg2.cor||(novoG?GCORES[M.garcons.length%GCORES.length]:gCor(gg2.id));return '<button type="button" class="sw" style="background:'+c+'" data-a="g-cor" data-v="'+c+'" aria-label="cor" aria-pressed="'+(cur===c)+'"></button>'}).join('')+'</div><p class="muted small" style="margin-top:14px">Quanto ele ganha por unidade vendida (R$)</p>'+
+    return '<div class="sheet"><h2>'+(novoG?'Novo garçom':'Editar garçom')+'</h2><label class="f"><span>Nome</span><input id="g-nome" value="'+esc(gg2.nome)+'"></label><label class="f"><span>E-mail para ele entrar no app (opcional)</span><input id="g-email" type="email" inputmode="email" autocapitalize="off" autocorrect="off" value="'+esc(gg2.email||'')+'" placeholder="garcom@email.com"></label><label class="f"><span>O que ele pode fazer no app</span><select id="g-nivel">'+[['ver','Só consultar as mesas e os ganhos dele'],['lanca','Lançar e fechar só as mesas dele'],['caixa','Acesso de caixa: todas as mesas (sem Gestão)']].map(function(o){var cur=gg2.op?'caixa':gg2.lanca?'lanca':'ver';return '<option value="'+o[0]+'"'+(cur===o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select></label><label class="f"><span>Ganha comissão das vendas do balcão? (só um garçom por vez)</span><select id="g-balcao"><option value="nao"'+(gg2.balcao?'':' selected')+'>Não</option><option value="sim"'+(gg2.balcao?' selected':'')+'>Sim, ele ganha dos drinks vendidos no balcão</option></select></label><p class="muted small" style="margin-top:12px">Cor dele</p><div class="swatches">'+GCORES.map(function(c){var cur=M2.cor||gg2.cor||(novoG?GCORES[M.garcons.length%GCORES.length]:gCor(gg2.id));return '<button type="button" class="sw" style="background:'+c+'" data-a="g-cor" data-v="'+c+'" aria-label="cor" aria-pressed="'+(cur===c)+'"></button>'}).join('')+'</div><p class="muted small" style="margin-top:14px">Quanto ele ganha por unidade vendida (R$)</p>'+
       REGRAS.map(function(r){return '<label class="f"><span>'+r[1]+'</span><input id="g-r-'+r[0]+'" inputmode="decimal" value="'+esc(String((gg2.regras&&gg2.regras[r[0]])||0).replace('.',','))+'"></label>'}).join('')+
       '<p class="muted small" style="margin-top:10px">Mudar os valores vale só para as próximas mesas fechadas.</p><div class="btns"><button class="btn" data-a="x">Cancelar</button><button class="btn primary" data-primary data-a="g-ok">Salvar</button></div>'+
       (novoG?'':'<button class="btn danger block" style="margin-top:10px" data-a="g-del">Remover garçom</button>')+'</div>';
@@ -1256,7 +1258,7 @@ function sGHoje(){
     }
     return '<button class="row tap'+(m.status==='aberta'?'':' ')+'" style="border-left:8px solid '+(m.status==='aberta'?'var(--accent)':'var(--ok)')+'" data-a="expand" data-k="g'+m.id+'"><div class="grow"><strong>Mesa '+esc(m.nome)+'</strong><div class="muted small">'+(m.status==='aberta'?'aberta há '+ago(m.abertaTs):'fechada')+(x.taxi?' · Táxi '+esc(x.taxi):'')+'</div></div><span style="text-align:right"><b class="num">'+money(tot)+'</b><div class="small num" style="color:var(--teal)">você '+money(round2(x.com+x.taxa))+'</div></span></button>'+det;
   }).join('');
-  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>56 · 31/10 22:40</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
+  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>57 · 31/10 23:00</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
   return{top:topTab(g?g.nome:'Meu dia',new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})),main:h,foot:navG()};
 }
 function sGDias(){
@@ -1288,7 +1290,7 @@ function sGanhosDiasOp(){
 }
 function sContaOp(){
   var g=garcom(GM.gid);
-  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>56 · 31/10 22:40</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
+  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>57 · 31/10 23:00</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
 }
 function render(){
   var r;
@@ -1533,7 +1535,7 @@ function startOp(){
   DB.collection('ganhos').where('garcomId','==',GM.gid).onSnapshot(function(sn){mergeColl('ganhos',sn);rq()},function(){});
   DB.doc('config/equipe').onSnapshot(function(s){
     var d=s.exists?s.data():null;if(!d)return;
-    M.garcons=(d.garcons||[]).map(function(g){return{id:g.id,nome:g.nome,cor:g.cor,regras:g.id===GM.gid?MYREG:{}}});
+    M.garcons=(d.garcons||[]).map(function(g){return{id:g.id,nome:g.nome,cor:g.cor,balcao:!!g.balcao,regras:g.id===GM.gid?MYREG:{}}});
     M.taxistas=(d.taxistas||[]).map(function(t){return{id:t.id,nome:t.nome,pct:0}});
     rq();
   },function(){});
