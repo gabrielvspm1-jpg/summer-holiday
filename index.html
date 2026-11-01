@@ -702,16 +702,17 @@ function resultadoHTML(r,titulo){
     '<div class="totalbar" style="margin-top:8px"><span class="muted">Líquido</span><b class="num" style="font-size:30px;color:'+(neg?'var(--danger)':'var(--ok)')+'">'+money(liq)+'</b></div></div>';
 }
 function resumoDia(){
-  var f=fechadas(),porForma={},top={},total=0,taxa=0,qPet=0,qAlm=0,bT=0,bQ=0;
+  var f=fechadas(),porForma={},top={},total=0,taxa=0,qPet=0,qAlm=0,bT=0,bQ=0,todos={};
   f.forEach(function(m){
     if(m.balcao){bT+=m.total;m.itens.forEach(function(l){bQ+=l.qtd});return}
     var c=calc(m);total+=m.total;taxa+=m.total-c.sub;
     porForma[m.pagamento]=(porForma[m.pagamento]||0)+m.total;
-    m.itens.forEach(function(l){top[l.nome]=(top[l.nome]||0)+l.qtd;var it=item(l.itemId),ct=it?it.cat:(/P\/\d/i.test(l.nome)?'Almoços':'');if(ct==='Petiscos')qPet+=l.qtd;else if(ct==='Almoços')qAlm+=l.qtd});
+    m.itens.forEach(function(l){top[l.nome]=(top[l.nome]||0)+l.qtd;var it=item(l.itemId),ct=it?it.cat:(/P\/\d/i.test(l.nome)?'Almoços':'');if(ct==='Petiscos')qPet+=l.qtd;else if(ct==='Almoços')qAlm+=l.qtd;var tk=(ct||'Outros')+'|'+l.nome;todos[tk]=todos[tk]||{nome:l.nome,cat:ct||'Outros',qtd:0};todos[tk].qtd+=l.qtd});
   });
   var o={qPet:qPet,qAlm:qAlm,bT:round2(bT),bQ:bQ,total:round2(total),taxa:round2(taxa),nMesas:f.filter(function(m){return !m.balcao}).length,porForma:porForma,
     top:Object.keys(top).map(function(k){return{nome:k,qtd:top[k]}}).sort(function(a,b){return b.qtd-a.qtd}).slice(0,5),
     abertas:abertas(),garcons:comissaoDia(),taxis:taxistaDia(),desp:despesasDia()};
+  o.itens=Object.keys(todos).map(function(k){return todos[k]}).sort(function(a,b){return CATS.concat(['Outros']).indexOf(a.cat)-CATS.concat(['Outros']).indexOf(b.cat)||b.qtd-a.qtd});
   o.garconsM=round2(o.garcons.total-(o.garcons.totBal||0));
   o.liquido=round2(o.total-o.garconsM-o.taxis.total-o.desp.total);
   return o;
@@ -722,7 +723,7 @@ async function fecharDia(){
   var snap=its.map(function(x){return{id:x.id,nome:x.nome,qtd:restam(x.id)}});
   var f=fechadas();
   V.modal=null;toast('Fechando o dia…');
-  var ok=await writeNow('dias/'+dia,{ts:now(),total:r.total,taxa:r.taxa,nMesas:r.nMesas,qPet:r.qPet,qAlm:r.qAlm,tBal:r.bT,qBal:r.bQ,porForma:r.porForma,top:r.top,
+  var ok=await writeNow('dias/'+dia,{ts:now(),total:r.total,taxa:r.taxa,nMesas:r.nMesas,qPet:r.qPet,qAlm:r.qAlm,tBal:r.bT,qBal:r.bQ,itens:r.itens,porForma:r.porForma,top:r.top,
     estoque:snap.map(function(s){return{nome:s.nome,qtd:s.qtd}}),abertas:r.abertas.map(function(m){return m.nome}),
     garcons:r.garcons.list.filter(function(g){return g.total>0}).map(function(g){return{nome:g.nome,total:g.total,com:g.com,taxa:g.taxa,linhas:g.linhas.map(function(l){return{k:l.k,qtd:l.qtd,total:l.total}})}}),
     garconsTotal:r.garconsM,taxis:r.taxis.list.filter(function(t){return t.total>0}).map(function(t){return{nome:t.nome,nMesas:t.nMesas,total:t.total}}),taxisTotal:r.taxis.total,despesas:r.desp.list.map(function(d){return{desc:d.desc,valor:d.valor,tipo:d.tipo||'gasto'}}),despesasTotal:r.desp.total,diariasTotal:r.desp.diarias,liquido:r.liquido});
@@ -1058,6 +1059,15 @@ function sRegistro(){
   }).join('')+'</section>';
   return{top:topTab('Registro','Quem fez o quê no app'),main:h,foot:navHTML()};
 }
+function diaItens(d){
+  if(!d.itens||!d.itens.length)return (d.top||[]).map(function(t){return '<div class="sumrow"><span>'+esc(t.nome)+'</span><b>'+t.qtd+' un.</b></div>'}).join('');
+  var h='',cur='',ordem=['Petiscos','Almoços','Drinks','Bebidas'];
+  d.itens.slice().sort(function(a,b){var ia=ordem.indexOf(a.cat),ib=ordem.indexOf(b.cat);return (ia<0?9:ia)-(ib<0?9:ib)||b.qtd-a.qtd}).forEach(function(t){
+    if(t.cat!==cur){cur=t.cat;var tot=d.itens.filter(function(x){return x.cat===cur}).reduce(function(a,x){return a+x.qtd},0);h+='<p class="muted small" style="margin:12px 0 2px"><b>'+esc(cur)+' · '+tot+'</b></p>'}
+    h+='<div class="sumrow"><span>'+esc(t.nome)+'</span><b>'+t.qtd+' un.</b></div>';
+  });
+  return h;
+}
 function sHoje(){
   if(V.gtab==='garcons')return sGarcons();
   if(V.gtab==='taxistas')return sTaxistas();
@@ -1093,7 +1103,7 @@ function sHoje(){
         Object.keys(pf).map(function(f){return '<div class="sumrow"><span>'+esc(f)+'</span><b class="num">'+money(pf[f])+'</b></div>'}).join('')+
         (d.garcons||[]).map(function(g){return '<div class="sumrow"><span>Garçom '+esc(g.nome)+'</span><b class="num">'+money(g.total)+'</b></div>'}).join('')+
         (d.qBal!=null&&d.qBal>0?'<div class="sumrow"><span>Balcão (à parte)</span><b>'+money(d.tBal)+' · '+d.qBal+' bebidas</b></div>':'')+(d.qPet!=null?'<div class="sumrow"><span>Petiscos vendidos</span><b>'+d.qPet+'</b></div><div class="sumrow"><span>Almoços vendidos</span><b>'+d.qAlm+'</b></div><div class="sumrow"><span>Petiscos + almoços</span><b>'+(d.qPet+d.qAlm)+'</b></div>':'')+
-        (d.top||[]).map(function(t){return '<div class="sumrow"><span>'+esc(t.nome)+'</span><b>'+t.qtd+' un.</b></div>'}).join('')+
+        diaItens(d)+
         (d.estoque&&d.estoque.length?'<p class="muted small" style="margin-top:8px">Sobrou: '+d.estoque.map(function(e){return esc(e.nome)+' '+e.qtd}).join(' · ')+'</p>':'')+
         (d.abertas&&d.abertas.length?'<p class="warn" style="margin-top:8px">Ficaram abertas: '+d.abertas.map(esc).join(', ')+'</p>':'')+
         '<p class="muted small" style="margin-top:8px">Dia fechado: só leitura.</p></div>';
@@ -1103,7 +1113,7 @@ function sHoje(){
   h+='</section>';seg('dias');h+='<section class="sec"><h2>Itens tirados das mesas</h2>';
   h+=M.log.length?M.log.slice(0,15).map(function(c){return '<div class="alert"><span><b>Mesa '+esc(c.mesa)+':</b> '+esc(c.item)+' ('+money(c.valor)+') · '+esc(c.motivo)+' · '+ago(c.ts)+' atrás</span></div>'}).join(''):'<p class="empty">Nada foi tirado. Quando alguém tirar um item, aparece aqui.</p>';
   h+='</section>';
-  var CTA='<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>59 · 01/11 07:55</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
+  var CTA='<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>60 · 01/11 10:45</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
   seg('mais');
   var rt=V.rtab||'dia',nd=Object.keys(M.dias).length,nm=ab.length+fe.length;
   var sub2=[['dia','Hoje',rt==='dia','hoje'],['mesas','Fechadas · '+fe.length,rt==='mesas','fechadas'],['dias','Dias'+(nd?' · '+nd:''),rt==='dias'],['mais','Mais',rt==='mais']];
@@ -1263,7 +1273,7 @@ function sGHoje(){
     }
     return '<button class="row tap'+(m.status==='aberta'?'':' ')+'" style="border-left:8px solid '+(m.status==='aberta'?'var(--accent)':'var(--ok)')+'" data-a="expand" data-k="g'+m.id+'"><div class="grow"><strong>Mesa '+esc(m.nome)+'</strong><div class="muted small">'+(m.status==='aberta'?'aberta há '+ago(m.abertaTs):'fechada')+(x.taxi?' · Táxi '+esc(x.taxi):'')+'</div></div><span style="text-align:right"><b class="num">'+money(tot)+'</b><div class="small num" style="color:var(--teal)">você '+money(round2(x.com+x.taxa))+'</div></span></button>'+det;
   }).join('');
-  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>59 · 01/11 07:55</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
+  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>60 · 01/11 10:45</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
   return{top:topTab(g?g.nome:'Meu dia',new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})),main:h,foot:navG()};
 }
 function sGDias(){
@@ -1295,7 +1305,7 @@ function sGanhosDiasOp(){
 }
 function sContaOp(){
   var g=garcom(GM.gid);
-  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>59 · 01/11 07:55</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
+  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>60 · 01/11 10:45</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
 }
 function render(){
   var r;
