@@ -157,6 +157,23 @@ html{padding-bottom:0!important}
 .mesa.allok{border-color:var(--ok)}
 .c-bad{color:var(--danger);border-color:var(--danger)}
 
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.grid3 .kpi{min-width:0;padding:12px 10px}
+.regchips{flex-wrap:nowrap!important;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
+.regchips .chipbtn{flex:none;white-space:nowrap}
+.regdia{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:18px 0 6px;padding-bottom:6px;border-bottom:1px solid var(--line);font-weight:800;font-size:14px}
+.regdia span:last-child{font-weight:600;font-size:12px;color:var(--muted)}
+.regit{display:grid;grid-template-columns:72px 28px 1fr;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
+.regt{display:flex;flex-direction:column;font-size:13px;line-height:1.25;font-variant-numeric:tabular-nums}
+.regt span{font-size:11px;color:var(--muted)}
+.regic{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.06)}
+.regic svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.regb{min-width:0}
+.regd{font-size:14px;margin-top:2px;overflow-wrap:anywhere}
+.regw{font-size:12px;color:var(--fg);margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.regw .muted{overflow-wrap:anywhere}
+.regdot{width:8px;height:8px;border-radius:50%;flex:none}
+.regx{display:inline-block;padding:1px 7px;border-radius:999px;background:rgba(255,255,255,.1);font-size:12px;font-weight:800}
 .itabs{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;border-bottom:1px solid var(--line);margin:0 0 12px}
 .itabs button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 2px 9px;margin-bottom:-1px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--muted);font-weight:600;font-size:13px;border-radius:0}
 .itabs svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
@@ -512,7 +529,7 @@ function addItem(itemId){
   var l=m.itens.filter(function(x){return x.itemId===itemId&&x.status===st})[0];
   if(l){l.qtd+=1}else{l={uid:gid('l'),itemId:itemId,nome:it.nome,preco:it.preco,qtd:1,status:st,fluxo:it.fluxo,ts:now(),tsStatus:now()};m.itens.push(l)}
   SEEN[l.uid]=l.qtd;audioPronto();
-  saveMesa(m);audit('Lançou item','+1 '+it.nome+' · Mesa '+m.nome);toast('+1 '+it.nome);
+  saveMesa(m);audit('Lançou item','Mesa '+m.nome+' · +1 '+it.nome+' ('+money(it.preco)+')'+(m.garcomNome?' · Garçom '+m.garcomNome:''));toast('+1 '+it.nome);
 }
 function menos(itemId){
   var m=mesaPor(V.mesaId);if(!m)return;
@@ -521,7 +538,7 @@ function menos(itemId){
   l.qtd-=1;
   if(l.qtd<=0)m.itens=m.itens.filter(function(x){return x!==l});
   saveMesa(m);
-  logCancel(m.nome,l.nome,l.preco,'Tirado na hora');audit('Tirou item','−1 '+l.nome+' · Mesa '+m.nome+' (na hora)');
+  logCancel(m.nome,l.nome,l.preco,'Tirado na hora');audit('Tirou item','Mesa '+m.nome+' · −1 '+l.nome+' ('+money(l.preco)+') · desfeito na hora, sem motivo');
   toast('−1 '+l.nome);
 }
 function tirar(mesaId,luid,motivo){
@@ -531,14 +548,14 @@ function tirar(mesaId,luid,motivo){
   if(l.qtd<=0)m.itens=m.itens.filter(function(x){return x!==l});
   var rot=MOTIVOS.filter(function(x){return x[0]===motivo})[0];
   saveMesa(m);
-  logCancel(m.nome,l.nome,l.preco,rot?rot[1]:motivo);audit('Tirou item','−1 '+l.nome+' · Mesa '+m.nome+' · '+(rot?rot[1]:motivo));
+  logCancel(m.nome,l.nome,l.preco,rot?rot[1]:motivo);audit('Tirou item','Mesa '+m.nome+' · −1 '+l.nome+' ('+money(l.preco)+') · motivo: '+(rot?rot[1]:motivo));
   toast('Tirei 1 '+l.nome);
 }
 function avancar(mesaId,luid){
   var m=mesaPor(mesaId),l=lineOf(m,luid);if(!l)return;
   var next=l.status!=='entregue'?'entregue':null;
   if(!next)return;
-  l.status=next;l.tsStatus=now();saveMesa(m);audit('Entregou',l.qtd+'× '+l.nome+' · Mesa '+m.nome);
+  l.status=next;l.tsStatus=now();saveMesa(m);audit('Entregou','Mesa '+m.nome+' · '+l.qtd+'× '+l.nome+(m.garcomNome?' · Garçom '+m.garcomNome:''));
 }
 function passar(fromId,luid,toId){
   var a=mesaPor(fromId),b=mesaPor(toId),l=lineOf(a,luid);if(!a||!b||!l)return;
@@ -576,7 +593,7 @@ function fecharMesa(){
   m.status='fechada';m.pagamento=V.pay;m.total=c.total;m.fechadaTs=now();
   if(GM)m.pendente=true;else fixComissao(m);
   V.mesaId=null;V.fechando=false;V.pay=null;
-  saveMesa(m);audit('Fechou mesa','Mesa '+m.nome+' · '+money(c.total)+' · '+m.pagamento);toast('Mesa '+m.nome+' fechada · '+money(c.total));
+  saveMesa(m);var nIt=m.itens.reduce(function(a,l){return a+l.qtd},0),dur=Math.max(1,Math.round((now()-(m.abertaTs||now()))/60000));audit('Fechou mesa','Mesa '+m.nome+' · '+money(c.total)+' no '+m.pagamento+' · '+nIt+' ite'+(nIt===1?'m':'ns')+' · aberta há '+(dur>=60?Math.floor(dur/60)+' h '+(dur%60)+' min':dur+' min')+(m.garcomNome?' · Garçom '+m.garcomNome:'')+(m.taxistaNome?' · Táxi '+m.taxistaNome:'')+(m.mais10?' · com 10%':' · sem 10%'));toast('Mesa '+m.nome+' fechada · '+money(c.total));
 }
 /* ---------- comissao dos garcons ---------- */
 var REGRAS=[['petisco','Petisco'],['caipe','Caipirinha (e caipvodka)'],['p2','Almoço p/ 2'],['p3','Almoço p/ 3'],['p4','Almoço p/ 4'],['p5','Almoço p/ 5'],['p6','Almoço p/ 6'],['balcao','Drink vendido no balcão']];
@@ -743,7 +760,7 @@ async function fecharDia(){
   }
   for(var j=0;j<f.length;j++){await writeNow('mesas/'+f[j].id,null);await writeNow('fin/'+f[j].id,null);delete M.fin[f[j].id]}
   for(var k=0;k<r.desp.list.length;k++){await writeNow('despesas/'+r.desp.list[k].id,null)}
-  audit('Fechou o dia','Bruto '+money(r.total)+' · líquido '+money(r.liquido));
+  audit('Fechou o dia','Bruto '+money(r.total)+' · líquido '+money(r.liquido)+' · '+r.nMesas+' mesas · '+r.qPet+' petiscos · '+r.qAlm+' almoços · despesas '+money(r.desp.total)+(r.bQ?' · balcão à parte '+money(r.bT)+' ('+r.bQ+' bebidas)':''));
   toast('Dia fechado · líquido '+money(r.liquido));
 }
 async function limparTeste(){
@@ -1025,38 +1042,72 @@ function sGarcons(){
   h+='<button class="btn block" data-a="g-edit" data-g="new">+ Novo garçom</button></section>';
   return{top:topTab('Gestão',new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})),main:h,foot:navHTML()};
 }
-var ACATS=[['mesas','Mesas'],['estoque','Estoque'],['cardapio','Cardápio'],['equipe','Equipe e dinheiro'],['acesso','Acessos']];
+var ACATS=[['mesas','Mesas'],['balcao','Balcão'],['estoque','Estoque'],['cardapio','Cardápio'],['equipe','Equipe e dinheiro'],['acesso','Acessos']];
 function catAcao(a){
   if(a==='Estoque')return 'estoque';
   if(a==='Cardápio')return 'cardapio';
   if(a==='Garçom'||a==='Taxista'||a==='Despesa'||a==='Apagou despesa'||a==='Fechou o dia'||a==='Limpou dados de teste')return 'equipe';
-  if(a==='Entrou no app')return 'acesso';
+  if(a==='Entrou no app'||a==='Saiu da conta')return 'acesso';
+  if(a==='Venda no balcão'||a==='Apagou venda do balcão')return 'balcao';
   return 'mesas';
 }
-var ACOR={mesas:'var(--accent)',estoque:'var(--teal)',cardapio:'#B38CFF',equipe:'#F6C453',acesso:'var(--muted)'};
+var ACOR={balcao:'#4FB3FF',mesas:'var(--accent)',estoque:'var(--teal)',cardapio:'#B38CFF',equipe:'#F6C453',acesso:'var(--muted)'};
+var RICON={mesas:ICON.mesas,balcao:ICON.balcao,estoque:ICON.estoque,cardapio:ICON.cardapio,equipe:TICON.garcons,acesso:'M5 11h14v9H5zM8 11V8a4 4 0 0 1 8 0v3'};
+function regHora(ts){return new Date(ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}
+function regHM(ts){return new Date(ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
+function regRel(ts){var s=Math.max(0,Math.round((now()-ts)/1000));if(s<60)return 'agora mesmo';var m=Math.round(s/60);if(m<60)return 'há '+m+' min';var h=Math.floor(m/60);if(h<24)return 'há '+h+' h'+(m%60?' '+(m%60)+' min':'');var d=Math.floor(h/24);return 'há '+d+' dia'+(d>1?'s':'')}
+function regDia(ts){
+  var d=new Date(ts),h=new Date(),ont=new Date();ont.setDate(h.getDate()-1);
+  var base=d.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'});
+  var pre=d.toDateString()===h.toDateString()?'Hoje · ':d.toDateString()===ont.toDateString()?'Ontem · ':'';
+  return pre+base;
+}
+function regPessoaCor(nome){var g=M.garcons.filter(function(x){return x.nome===String(nome).replace(/ \((caixa|lança)\)$/,'')})[0];return g?gCor(g.id):'var(--accent)'}
+function regNome(nome,email){var n=String(nome||'');if(n==='Dono'&&email)return 'Dono ('+String(email).split('@')[0]+')';return n}
+function regIcone(cat){return '<span class="regic" style="color:'+ACOR[cat]+'"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="'+RICON[cat]+'"/></svg></span>'}
 function sRegistro(){
-  var all=M.auditoria||[],hoje0=new Date();hoje0.setHours(0,0,0,0);
-  var fc=V.acat||'',pess={};
-  all.forEach(function(x){var e=x.email||'?',p=pess[e]||(pess[e]={email:e,nome:x.nome||e,n:0,nh:0,ult:0,l:[]});p.n++;if(x.ts>=hoje0.getTime())p.nh++;if(x.ts>=p.ult){p.ult=x.ts;p.nome=x.nome||p.nome}p.l.push(x)});
-  var lp=Object.keys(pess).map(function(k){return pess[k]}).sort(function(a,b){return b.ult-a.ult});
-  var h=segG()+'<section class="sec"><div class="kpi"><div class="k">Ações registradas hoje</div><div class="v num">'+all.filter(function(x){return x.ts>=hoje0.getTime()}).length+'</div><div class="muted small">'+lp.length+' conta(s) já mexeram no app</div></div></section>';
-  h+='<section class="sec"><h2>O que cada conta fez</h2><div class="chips" style="margin-bottom:10px"><button class="chipbtn" data-a="aud-cat" data-v="" aria-pressed="'+(!fc)+'">Tudo</button>'+ACATS.map(function(c){return '<button class="chipbtn" data-a="aud-cat" data-v="'+c[0]+'" aria-pressed="'+(fc===c[0])+'">'+c[1]+'</button>'}).join('')+'</div>';
-  if(!lp.length)h+='<p class="empty">Ainda não há nada registrado.</p>';
-  h+=lp.map(function(p){
-    var g=M.garcons.filter(function(x){return x.nome===String(p.nome).replace(/ \(caixa\)$/,'')})[0],cor=g?gCor(g.id):'var(--accent)';
-    var lista=p.l.filter(function(x){return !fc||catAcao(x.acao)===fc}),o=V.open['p'+p.email];
-    var cab='<button class="row tap" style="border-left:8px solid '+cor+';min-height:72px" data-a="expand" data-k="p'+esc(p.email)+'"><div class="grow"><strong style="font-size:18px">'+esc(p.nome)+'</strong><div class="muted small">'+esc(p.email)+'</div><div class="small" style="margin-top:2px">última ação '+(ago(p.ult)==='agora'?'agora':'há '+ago(p.ult))+'</div></div><span style="text-align:right"><b class="num" style="font-size:24px">'+p.nh+'</b><div class="muted small">hoje</div></span><span class="muted" style="font-size:26px;margin-left:6px">'+(o?'⌄':'›')+'</span></button>';
-    var det='';
-    if(o){
-      var dia='';
-      det='<div class="card" style="margin:-4px 0 12px;border-left:8px solid '+cor+'">'+(lista.length?lista.slice(0,80).map(function(x){
-        var d=new Date(x.ts),dd=d.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'}),hd='';
-        if(dd!==dia){dia=dd;hd='<div class="muted small" style="margin:10px 0 4px;text-transform:capitalize;font-weight:800">'+(d.toDateString()===new Date().toDateString()?'Hoje · ':'')+esc(dd)+'</div>'}
-        return hd+'<div class="sumrow" style="align-items:flex-start"><span><b style="color:'+ACOR[catAcao(x.acao)]+'">'+esc(x.acao)+'</b>'+(x.det?'<br><span class="small">'+esc(x.det)+'</span>':'')+'</span><span class="num muted small" style="white-space:nowrap">'+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</span></div>';
-      }).join(''):'<p class="empty">Nada com esse filtro.</p>')+'</div>';
-    }
-    return cab+det;
-  }).join('')+'</section>';
+  var all=(M.auditoria||[]).slice().sort(function(a,b){return b.ts-a.ts});
+  var t0=new Date();t0.setHours(0,0,0,0);var hoje0=t0.getTime(),ont0=hoje0-864e5,d7=hoje0-6*864e5;
+  var fc=V.acat||'',fp=V.rp||'',per=V.rq||'hoje',vw=V.rv||'linha',lim=V.rlim||120;
+  var pess={};
+  all.forEach(function(x){var e=x.email||'?',p=pess[e]||(pess[e]={email:e,nome:regNome(x.nome||e,e),nh:0,n:0,ult:null});p.n++;if(x.ts>=hoje0)p.nh++;if(!p.ult){p.ult=x;p.nome=regNome(x.nome||p.nome,e)}});
+  var lp=Object.keys(pess).map(function(k){return pess[k]}).sort(function(a,b){return b.ult.ts-a.ult.ts});
+  var nHoje=all.filter(function(x){return x.ts>=hoje0}).length,ativosHoje=lp.filter(function(p){return p.nh>0}).length,ult=all[0];
+  var h=segG();
+  h+='<section class="sec"><div class="grid3"><div class="kpi"><div class="k">Ações hoje</div><div class="v sm num">'+nHoje+'</div></div><div class="kpi"><div class="k">Contas ativas hoje</div><div class="v sm num">'+ativosHoje+'</div></div><div class="kpi"><div class="k">Última ação</div><div class="v sm num">'+(ult?regHM(ult.ts):'—')+'</div><div class="muted small">'+(ult?regRel(ult.ts):'')+'</div></div></div></section>';
+  h+='<div class="itabs sub" role="tablist"><button data-a="reg-view" data-v="linha" aria-pressed="'+(vw==='linha')+'"><svg viewBox="0 0 24 24"><path d="'+ICON.fila+'"/></svg><span>Linha do tempo</span></button><button data-a="reg-view" data-v="pessoas" aria-pressed="'+(vw==='pessoas')+'"><svg viewBox="0 0 24 24"><path d="'+TICON.garcons+'"/></svg><span>Por pessoa</span></button></div>';
+  if(!all.length)return{top:topTab('Registro','Quem fez o quê no app'),main:h+'<p class="empty">Ainda não há nada registrado.</p>',foot:navHTML()};
+  if(vw==='pessoas'){
+    h+='<section class="sec">'+lp.map(function(p){
+      var cor=regPessoaCor(p.nome);
+      return '<button class="row tap" style="border-left:8px solid '+cor+';min-height:76px;text-align:left" data-a="reg-pess" data-v="'+esc(p.email)+'"><div class="grow"><strong style="font-size:18px">'+esc(p.nome)+'</strong><div class="muted small">'+esc(p.email)+'</div><div class="small" style="margin-top:4px">Última: <b>'+esc(p.ult.acao)+'</b> · '+regRel(p.ult.ts)+' ('+regHM(p.ult.ts)+')</div></div><div style="text-align:right"><b class="num" style="font-size:20px">'+p.nh+'</b><div class="muted small">hoje</div><div class="muted small">'+p.n+' no total</div></div></button>';
+    }).join('')+'</section>';
+    return{top:topTab('Registro','Quem fez o quê no app'),main:h,foot:navHTML()};
+  }
+  // filtros
+  h+='<section class="sec"><p class="muted small" style="margin:0 0 4px"><b>Quando</b></p><div class="chips regchips">'+[['hoje','Hoje'],['ontem','Ontem'],['7d','7 dias'],['tudo','Tudo']].map(function(c){return '<button class="chipbtn" data-a="reg-per" data-v="'+c[0]+'" aria-pressed="'+(per===c[0])+'">'+c[1]+'</button>'}).join('')+'</div>';
+  h+='<p class="muted small" style="margin:10px 0 4px"><b>Quem</b></p><div class="chips regchips"><button class="chipbtn" data-a="reg-pess" data-v="" aria-pressed="'+(!fp)+'">Todos</button>'+lp.map(function(p){return '<button class="chipbtn" data-a="reg-pess" data-v="'+esc(p.email)+'" aria-pressed="'+(fp===p.email)+'" style="border-left:6px solid '+regPessoaCor(p.nome)+'">'+esc(p.nome)+'</button>'}).join('')+'</div>';
+  h+='<p class="muted small" style="margin:10px 0 4px"><b>O quê</b></p><div class="chips regchips"><button class="chipbtn" data-a="aud-cat" data-v="" aria-pressed="'+(!fc)+'">Tudo</button>'+ACATS.map(function(c){return '<button class="chipbtn" data-a="aud-cat" data-v="'+c[0]+'" aria-pressed="'+(fc===c[0])+'" style="color:'+ACOR[c[0]]+'"><span style="color:var(--fg)">'+c[1]+'</span></button>'}).join('')+'</div></section>';
+  var min=per==='hoje'?hoje0:per==='ontem'?ont0:per==='7d'?d7:0,max=per==='ontem'?hoje0:Infinity;
+  var lista=all.filter(function(x){return x.ts>=min&&x.ts<max&&(!fc||catAcao(x.acao)===fc)&&(!fp||(x.email||'?')===fp)});
+  // junta repetidos seguidos (mesma pessoa, mesma ação e detalhe, em até 5 min)
+  var gr=[];
+  lista.forEach(function(x){
+    var u=gr[gr.length-1];
+    if(u&&u.email===x.email&&u.acao===x.acao&&u.det===x.det&&u.tsMin-x.ts<=300000){u.n++;u.tsMin=x.ts}
+    else gr.push({email:x.email,nome:x.nome,acao:x.acao,det:x.det,ts:x.ts,tsMin:x.ts,n:1});
+  });
+  h+='<section class="sec"><h2>'+lista.length+(lista.length===1?' ação':' ações')+(per==='hoje'?' hoje':per==='ontem'?' ontem':per==='7d'?' nos últimos 7 dias':' registradas')+'</h2>';
+  if(!gr.length)h+='<p class="empty">Nada com esses filtros.</p>';
+  var dia='',cnt={};lista.forEach(function(x){var k=regDia(x.ts);cnt[k]=(cnt[k]||0)+1});
+  gr.slice(0,lim).forEach(function(x){
+    var k=regDia(x.ts);
+    if(k!==dia){dia=k;h+='<div class="regdia"><span style="text-transform:capitalize">'+esc(k)+'</span><span>'+cnt[k]+(cnt[k]===1?' ação':' ações')+'</span></div>'}
+    var cat=catAcao(x.acao),cor=regPessoaCor(regNome(x.nome,x.email));
+    h+='<div class="regit"><div class="regt num"><b>'+regHora(x.ts)+'</b>'+(x.n>1&&regHora(x.tsMin)!==regHora(x.ts)?'<span>desde '+regHora(x.tsMin)+'</span>':'')+'</div>'+regIcone(cat)+'<div class="regb"><div><strong style="color:'+ACOR[cat]+'">'+esc(x.acao)+'</strong>'+(x.n>1?' <span class="regx num">×'+x.n+'</span>':'')+'</div>'+(x.det?'<div class="regd">'+esc(x.det)+'</div>':'')+'<div class="regw"><span class="regdot" style="background:'+cor+'"></span>'+esc(regNome(x.nome,x.email))+' <span class="muted">· '+esc(x.email||'')+'</span></div></div></div>';
+  });
+  if(gr.length>lim)h+='<button class="btn block" style="margin-top:12px" data-a="reg-mais">Mostrar mais ('+(gr.length-lim)+' restantes)</button>';
+  h+='</section>';
   return{top:topTab('Registro','Quem fez o quê no app'),main:h,foot:navHTML()};
 }
 function diaItens(d){
@@ -1113,7 +1164,7 @@ function sHoje(){
   h+='</section>';seg('dias');h+='<section class="sec"><h2>Itens tirados das mesas</h2>';
   h+=M.log.length?M.log.slice(0,15).map(function(c){return '<div class="alert"><span><b>Mesa '+esc(c.mesa)+':</b> '+esc(c.item)+' ('+money(c.valor)+') · '+esc(c.motivo)+' · '+ago(c.ts)+' atrás</span></div>'}).join(''):'<p class="empty">Nada foi tirado. Quando alguém tirar um item, aparece aqui.</p>';
   h+='</section>';
-  var CTA='<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>60 · 01/11 10:45</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
+  var CTA='<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>61 · 08/11 09:25</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
   seg('mais');
   var rt=V.rtab||'dia',nd=Object.keys(M.dias).length,nm=ab.length+fe.length;
   var sub2=[['dia','Hoje',rt==='dia','hoje'],['mesas','Fechadas · '+fe.length,rt==='mesas','fechadas'],['dias','Dias'+(nd?' · '+nd:''),rt==='dias'],['mais','Mais',rt==='mais']];
@@ -1273,7 +1324,7 @@ function sGHoje(){
     }
     return '<button class="row tap'+(m.status==='aberta'?'':' ')+'" style="border-left:8px solid '+(m.status==='aberta'?'var(--accent)':'var(--ok)')+'" data-a="expand" data-k="g'+m.id+'"><div class="grow"><strong>Mesa '+esc(m.nome)+'</strong><div class="muted small">'+(m.status==='aberta'?'aberta há '+ago(m.abertaTs):'fechada')+(x.taxi?' · Táxi '+esc(x.taxi):'')+'</div></div><span style="text-align:right"><b class="num">'+money(tot)+'</b><div class="small num" style="color:var(--teal)">você '+money(round2(x.com+x.taxa))+'</div></span></button>'+det;
   }).join('');
-  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>60 · 01/11 10:45</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
+  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>61 · 08/11 09:25</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
   return{top:topTab(g?g.nome:'Meu dia',new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})),main:h,foot:navG()};
 }
 function sGDias(){
@@ -1305,7 +1356,7 @@ function sGanhosDiasOp(){
 }
 function sContaOp(){
   var g=garcom(GM.gid);
-  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>60 · 01/11 10:45</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
+  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>61 · 08/11 09:25</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
 }
 function render(){
   var r;
@@ -1348,14 +1399,15 @@ function toast(msg){
 function saveItem(){
   var nome=val('f-nome').trim(),preco=parseFloat(val('f-preco').replace(',','.'));
   if(!nome||isNaN(preco)||preco<0){toast('Preencha nome e preço');return false}
-  var novo=V.modal.id==='new',it=novo?null:item(V.modal.id);
+  var novo=V.modal.id==='new',it=novo?null:item(V.modal.id),antes=it?{nome:it.nome,preco:it.preco,cat:it.cat,ativo:it.ativo,estoque:it.estoque,desc:it.desc||''}:null;
   var data={nome:nome,desc:val('f-desc').trim(),preco:round2(preco),cat:val('f-cat'),fluxo:val('f-fluxo'),ativo:document.getElementById('f-ativo').checked,estoque:document.getElementById('f-estoque').checked,min:parseInt(val('f-min'),10)||0};
   if(it)Object.assign(it,data);
   else{
     var ord=menuList().reduce(function(a,x){return Math.max(a,x.ord||0)},0)+1;
     it=Object.assign({id:gid('i'),ord:ord},data);M.menu[it.id]=it;
   }
-  saveMenuDoc(it.id);audit('Cardápio',(novo?'Novo item ':'Editou ')+it.nome+' · '+money(it.preco));
+  saveMenuDoc(it.id);var mud=[];if(antes){if(antes.nome!==it.nome)mud.push('nome: '+antes.nome+' → '+it.nome);if(antes.preco!==it.preco)mud.push('preço: '+money(antes.preco)+' → '+money(it.preco));if(antes.cat!==it.cat)mud.push('grupo: '+antes.cat+' → '+it.cat);if(antes.ativo!==it.ativo)mud.push(it.ativo?'voltou ao cardápio':'tirado do cardápio');if(antes.estoque!==it.estoque)mud.push(it.estoque?'passou a controlar estoque':'parou de controlar estoque');if(antes.desc!==(it.desc||''))mud.push('descrição alterada')}
+  audit('Cardápio',novo?'Novo item: '+it.nome+' · '+money(it.preco)+' · '+it.cat:it.nome+' · '+(mud.length?mud.join(' · '):'salvo sem mudanças'));
   if(it.estoque&&!M.estoque[it.id]){M.estoque[it.id]={id:it.id,base:0,baseTs:now(),contagem:null};saveEstoqueDoc(it.id)}
   toast('Item salvo');return true;
 }
@@ -1381,7 +1433,7 @@ document.addEventListener('click',function(e){
   switch(a){
     case 'reload':location.reload();return;
     case 'som':somSet(!somOn());audioPronto();if(somOn())bipe();break;
-    case 'logout':if(AUTH)AUTH.signOut().then(function(){location.reload()},function(){location.reload()});return;
+    case 'logout':audit('Saiu da conta','');setTimeout(function(){if(AUTH)AUTH.signOut().then(function(){location.reload()},function(){location.reload()});else location.reload()},400);return;
     case 'tab':V.tab=d.v;BALDEL=null;break;
     case 'bal-add':if(item(d.i)){BAL[d.i]=(BAL[d.i]||0)+1;audioPronto()}break;
     case 'bal-menos':if(BAL[d.i]){BAL[d.i]-=1;if(BAL[d.i]<=0)delete BAL[d.i]}break;
@@ -1447,7 +1499,11 @@ document.addEventListener('click',function(e){
     case 'est-toggle':var ti=item(d.i);if(ti){ti.estoque=!ti.estoque;saveMenuDoc(ti.id);if(ti.estoque&&!M.estoque[ti.id]){M.estoque[ti.id]={id:ti.id,base:0,baseTs:now(),contagem:null};saveEstoqueDoc(ti.id)}try{el.setAttribute('aria-pressed',ti.estoque?'true':'false');el.querySelector('.sw')}catch(e){}audit('Estoque',ti.nome+(ti.estoque?' entrou no estoque':' saiu do estoque'));toast(ti.estoque?ti.nome+' entrou no estoque':ti.nome+' saiu do estoque')}return;
     case 'rtab':V.rtab=d.v;break;
     case 'aud-fil':V.afil=d.v;break;
-    case 'aud-cat':V.acat=d.v;break;
+    case 'aud-cat':V.acat=d.v;V.rlim=0;break;
+    case 'reg-view':V.rv=d.v;break;
+    case 'reg-pess':V.rp=d.v;V.rv='linha';V.rlim=0;break;
+    case 'reg-per':V.rq=d.v;V.rlim=0;break;
+    case 'reg-mais':V.rlim=(V.rlim||120)+150;break;
     case 'x':V.modal=null;break;
     case 'desp-novo':V.modal={type:'desp',tipo:'gasto'};break;
     case 'desp-tipo':var mm=V.modal,mem=mm.mem||{};mem[mm.tipo]={v:val('f-valor'),desc:val('f-desc')};V.modal={type:'desp',tipo:d.v,mem:mem,v:(mem[d.v]||{}).v||'',desc:(mem[d.v]||{}).desc||''};break;
@@ -1523,7 +1579,7 @@ function migrarPrecos(){
   }).catch(function(){migrou=false})}catch(e){migrou=false}
 }
 function startDono(){
-  if(ehMaster())try{DB.collection('auditoria').orderBy('ts','desc').limit(300).onSnapshot(function(sn){M.auditoria=sn.docs.map(function(d){var x=d.data();x.id=d.id;return x});rq()},function(){})}catch(e){}
+  if(ehMaster())try{DB.collection('auditoria').orderBy('ts','desc').limit(800).onSnapshot(function(sn){M.auditoria=sn.docs.map(function(d){var x=d.data();x.id=d.id;return x});rq()},function(){})}catch(e){}
   listen('menu',DB.collection('menu'),function(s){
     if(!seeded&&s.empty&&s.metadata&&!s.metadata.fromCache){seeded=true;seedMenu()}
     mergeColl('menu',s);
@@ -1625,7 +1681,7 @@ async function entrar(u){
     roleSave(email,gid,op,lanca);
   }
   if(gid){GM={gid:gid,email:email,op:op,lanca:lanca};startGarcom()}else startDono();
-  setTimeout(function(){audit('Entrou no app','')},3500);
+  setTimeout(function(){var ua=navigator.userAgent||'',ap=/iPhone|iPad/i.test(ua)?'iPhone/iPad':/Android/i.test(ua)?'Android':'Computador';audit('Entrou no app',ap+(navigator.onLine===false?' · sem internet':''))},3500);
 }
 function wireAuth(){
   var $=function(i){return document.getElementById(i)},mode='in',busy=false,started=false;
