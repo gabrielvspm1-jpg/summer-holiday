@@ -1142,7 +1142,7 @@ function sHoje(){
   var todas=fe.slice().sort(function(a,b){return (b.fechadaTs||0)-(a.fechadaTs||0)});
   h+=todas.length?todas.map(function(m){
     var o=V.open['m'+m.id];
-    return '<button class="row tap" data-a="expand" data-k="m'+m.id+'"><div class="grow"><strong>'+(m.balcao?'':'Mesa ')+esc(m.nome)+'</strong><div class="muted small">'+(m.status==='aberta'?'aberta há '+ago(m.abertaTs):esc(m.pagamento))+(gNome(m)?' · '+gDot(m.garcomId)+esc(gNome(m)):'')+(tNome(m)?' · Táxi '+esc(tNome(m)):'')+'</div></div><b class="num">'+money(m.status==='aberta'?sub(m):m.total)+'</b></button>'+(o?'<div class="card">'+linhasHTML(m)+(m.status==='fechada'?'<div class="btns" style="margin-top:10px"><button class="btn" data-a="gmesa-f" data-m="'+m.id+'">Trocar garçom</button><button class="btn" data-a="tmesa-f" data-m="'+m.id+'">Trocar táxi</button></div>':'')+'</div>':'');
+    return '<button class="row tap" data-a="expand" data-k="m'+m.id+'"><div class="grow"><strong>'+(m.balcao?'':'Mesa ')+esc(m.nome)+'</strong><div class="muted small">'+(m.status==='aberta'?'aberta há '+ago(m.abertaTs):esc(m.pagamento))+(gNome(m)?' · '+gDot(m.garcomId)+esc(gNome(m)):'')+(tNome(m)?' · Táxi '+esc(tNome(m)):'')+'</div></div><b class="num">'+money(m.status==='aberta'?sub(m):m.total)+'</b></button>'+(o?'<div class="card">'+linhasHTML(m)+(m.status==='fechada'?'<div class="btns" style="margin-top:10px"><button class="btn" data-a="gmesa-f" data-m="'+m.id+'">Trocar garçom</button><button class="btn" data-a="tmesa-f" data-m="'+m.id+'">Trocar táxi</button></div>':'')+(GM?'':'<button class="btn block '+(V.apagaM===m.id?'danger':'ghost')+'" style="margin-top:10px" data-a="mesa-del" data-m="'+m.id+'">'+(V.apagaM===m.id?'Toque de novo para APAGAR esta mesa':'Apagar mesa')+'</button>')+'</div>':'');
   }).join(''):'<p class="empty">Nenhuma mesa fechada ainda hoje.</p>';
   h+='</section>';seg('mesas');h+='<section class="sec"><h2>Dias anteriores</h2>';
   var dias=Object.keys(M.dias).map(function(k){return M.dias[k]}).sort(function(a,b){return b.ts-a.ts});
@@ -1164,7 +1164,7 @@ function sHoje(){
   h+='</section>';seg('dias');h+='<section class="sec"><h2>Itens tirados das mesas</h2>';
   h+=M.log.length?M.log.slice(0,15).map(function(c){return '<div class="alert"><span><b>Mesa '+esc(c.mesa)+':</b> '+esc(c.item)+' ('+money(c.valor)+') · '+esc(c.motivo)+' · '+ago(c.ts)+' atrás</span></div>'}).join(''):'<p class="empty">Nada foi tirado. Quando alguém tirar um item, aparece aqui.</p>';
   h+='</section>';
-  var CTA='<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>61 · 08/11 09:25</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
+  var CTA='<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>62 · 14/11 19:50</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
   seg('mais');
   var rt=V.rtab||'dia',nd=Object.keys(M.dias).length,nm=ab.length+fe.length;
   var sub2=[['dia','Hoje',rt==='dia','hoje'],['mesas','Fechadas · '+fe.length,rt==='mesas','fechadas'],['dias','Dias'+(nd?' · '+nd:''),rt==='dias'],['mais','Mais',rt==='mais']];
@@ -1324,7 +1324,7 @@ function sGHoje(){
     }
     return '<button class="row tap'+(m.status==='aberta'?'':' ')+'" style="border-left:8px solid '+(m.status==='aberta'?'var(--accent)':'var(--ok)')+'" data-a="expand" data-k="g'+m.id+'"><div class="grow"><strong>Mesa '+esc(m.nome)+'</strong><div class="muted small">'+(m.status==='aberta'?'aberta há '+ago(m.abertaTs):'fechada')+(x.taxi?' · Táxi '+esc(x.taxi):'')+'</div></div><span style="text-align:right"><b class="num">'+money(tot)+'</b><div class="small num" style="color:var(--teal)">você '+money(round2(x.com+x.taxa))+'</div></span></button>'+det;
   }).join('');
-  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>61 · 08/11 09:25</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
+  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>62 · 14/11 19:50</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
   return{top:topTab(g?g.nome:'Meu dia',new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})),main:h,foot:navG()};
 }
 function sGDias(){
@@ -1356,7 +1356,7 @@ function sGanhosDiasOp(){
 }
 function sContaOp(){
   var g=garcom(GM.gid);
-  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>61 · 08/11 09:25</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
+  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>62 · 14/11 19:50</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
 }
 function render(){
   var r;
@@ -1434,7 +1434,7 @@ document.addEventListener('click',function(e){
     case 'reload':location.reload();return;
     case 'som':somSet(!somOn());audioPronto();if(somOn())bipe();break;
     case 'logout':audit('Saiu da conta','');setTimeout(function(){if(AUTH)AUTH.signOut().then(function(){location.reload()},function(){location.reload()});else location.reload()},400);return;
-    case 'tab':V.tab=d.v;BALDEL=null;break;
+    case 'tab':V.tab=d.v;BALDEL=null;V.apagaM=null;break;
     case 'bal-add':if(item(d.i)){BAL[d.i]=(BAL[d.i]||0)+1;audioPronto()}break;
     case 'bal-menos':if(BAL[d.i]){BAL[d.i]-=1;if(BAL[d.i]<=0)delete BAL[d.i]}break;
     case 'bal-limpar':BAL={};break;
@@ -1466,6 +1466,7 @@ document.addEventListener('click',function(e){
       var nm={id:gid('m'),nome:nome,abertaTs:now(),status:'aberta',mais10:true,divide:1,itens:[],baixas:[],garcomId:gsel2?gsel2.id:'',garcomNome:gsel2?gsel2.nome:''};
       SEENM[nm.id]=1;M.mesas[nm.id]=nm;saveMesa(nm);audit('Abriu mesa','Mesa '+nm.nome+(nm.garcomNome?' · '+nm.garcomNome:''));V.mesaId=nm.id;V.mesaTab='add';V.modal=null;break;
     case 'abrir-mesa':delete NEWM[d.m];V.q='';var qe=document.getElementById('q-mesa');if(qe)qe.value='';var qx=document.getElementById('q-x');if(qx)qx.hidden=true;V.mesaId=d.m;V.mesaTab='add';V.fechando=false;break;
+    case 'mesa-del':{var md=M.mesas[d.m];if(md&&!GM){if(V.apagaM===md.id){var nIt=md.itens.reduce(function(a,l){return a+l.qtd},0);delete M.mesas[md.id];saveMesa(md);if(M.fin[md.id]){delete M.fin[md.id];saveFin(md.id)}audit('Apagou mesa',(md.status==='fechada'?'Mesa fechada ':'Mesa aberta ')+md.nome+' · '+nIt+' ite'+(nIt===1?'m':'ns')+(md.status==='fechada'?' · '+money(md.total)+' no '+(md.pagamento||''):'')+(md.garcomNome?' · Garçom '+md.garcomNome:''));V.apagaM=null;toast('Mesa '+md.nome+' apagada')}else V.apagaM=md.id}break}
     case 'mesa-cancel':{var mc=mesaPor(V.mesaId);if(mc&&mc.itens.length){toast('Não dá para cancelar: esta mesa já tem itens lançados.');break}if(mc){delete M.mesas[mc.id];saveMesa(mc);audit('Cancelou mesa','Mesa '+mc.nome+' (sem itens)');V.mesaId=null;V.fechando=false;V.pay=null;toast('Mesa '+mc.nome+' cancelada')}break}
     case 'voltar':V.mesaId=null;V.fechando=false;V.pay=null;break;
     case 'mesa-tab':V.mesaTab=d.v;break;
