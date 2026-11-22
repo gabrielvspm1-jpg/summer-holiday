@@ -1166,7 +1166,7 @@ function sHoje(){
   h+='</section>';seg('dias');h+='<section class="sec"><h2>Itens tirados das mesas</h2>';
   h+=M.log.length?M.log.slice(0,15).map(function(c){return '<div class="alert"><span><b>Mesa '+esc(c.mesa)+':</b> '+esc(c.item)+' ('+money(c.valor)+') · '+esc(c.motivo)+' · '+ago(c.ts)+' atrás</span></div>'}).join(''):'<p class="empty">Nada foi tirado. Quando alguém tirar um item, aparece aqui.</p>';
   h+='</section>';
-  var CTA='<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>66 · 21/11 21:05</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
+  var CTA='<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>67 · 21/11 21:15</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section><section class="sec"><h2>Começar do zero</h2><p class="muted small">Use depois de testar, antes de abrir de verdade.</p><button class="btn danger block" data-a="conf">Limpar dados de teste</button></section>';
   seg('mais');
   var rt=V.rtab||'dia',nd=Object.keys(M.dias).length,nm=ab.length+fe.length;
   var sub2=[['dia','Hoje',rt==='dia','hoje'],['mesas','Fechadas · '+fe.length,rt==='mesas','fechadas'],['dias','Dias'+(nd?' · '+nd:''),rt==='dias'],['mais','Mais',rt==='mais']];
@@ -1331,7 +1331,7 @@ function sGHoje(){
     }
     return '<button class="row tap'+(m.status==='aberta'?'':' ')+'" style="border-left:8px solid '+(m.status==='aberta'?'var(--accent)':'var(--ok)')+'" data-a="expand" data-k="g'+m.id+'"><div class="grow"><strong>Mesa '+esc(m.nome)+'</strong><div class="muted small">'+(m.status==='aberta'?'aberta há '+ago(m.abertaTs):'fechada')+(x.taxi?' · Táxi '+esc(x.taxi):'')+'</div></div><span style="text-align:right"><b class="num">'+money(tot)+'</b><div class="small num" style="color:var(--teal)">você '+money(round2(x.com+x.taxa))+'</div></span></button>'+det;
   }).join('');
-  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>66 · 21/11 21:05</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
+  h+='</section><section class="sec"><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>67 · 21/11 21:15</b></p><button class="btn block" data-a="logout">Sair da conta</button></section>';
   return{top:topTab(g?g.nome:'Meu dia',new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})),main:h,foot:navG()};
 }
 function sGDias(){
@@ -1363,7 +1363,7 @@ function sGanhosDiasOp(){
 }
 function sContaOp(){
   var g=garcom(GM.gid);
-  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>66 · 21/11 21:05</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
+  return{top:topTab(g?g.nome:'Conta','Acesso de caixa'),main:'<section class="sec"><h2>Conta</h2><div class="note">Entrou como <b>'+esc(USER&&USER.email||'')+'</b></div><p class="muted small">Versão do app: <b>67 · 21/11 21:15</b></p>'+'<button class="btn block" data-a="som" style="margin-bottom:10px">'+(somOn()?'🔔 Aviso de pedido novo: LIGADO':'🔕 Aviso de pedido novo: desligado')+'</button><p class="muted small">Toca um som e vibra (no Android) quando outro celular lança um pedido. Funciona com o app aberto e a tela ligada.</p>'+'<button class="btn block" data-a="logout">Sair da conta</button></section>',foot:navHTML()};
 }
 function render(){
   var r;
@@ -1587,10 +1587,13 @@ function aplicarPrecos0111(){
 var aluFeito=false;
 function garantirAluguel(){
   if(aluFeito)return;aluFeito=true;
-  if(Object.keys(M.menu).some(function(k){return M.menu[k].cat==='Aluguel'}))return;
-  var ord0=menuList().reduce(function(a,x){return Math.max(a,x.ord||0)},0);
-  [50,100,150,200].forEach(function(v,i){var id='aluguel'+v;M.menu[id]={id:id,ord:ord0+1+i,nome:'Aluguel R$ '+v,desc:'',preco:v,cat:'Aluguel',fluxo:'direto',ativo:true,estoque:false,min:0};saveMenuDoc(id)});
-  audit('Cardápio','Criou os 4 alugueis (R$ 50, 100, 150 e 200)');rq();
+  var vals=[50,100,150,200];
+  function criar(){
+    var ord0=menuList().reduce(function(a,x){return Math.max(a,x.ord||0)},0),n=0;
+    vals.forEach(function(v,i){var id='aluguel'+v;if(M.menu[id])return;M.menu[id]={id:id,ord:ord0+1+i,nome:'Aluguel R$ '+v,desc:'',preco:v,cat:'Aluguel',fluxo:'direto',ativo:true,estoque:false,min:0};saveMenuDoc(id);n++});
+    if(n){audit('Cardápio','Criou os alugueis (R$ 50, 100, 150 e 200)');rq()}
+  }
+  try{DB.doc('menu/aluguel50').get().then(function(sn){if(!sn.exists)criar()}).catch(function(){criar()})}catch(e){criar()}
 }
 function migrarPrecos(){
   try{DB.doc('config/migracoes').get().then(function(sn){
@@ -1615,7 +1618,7 @@ function startDono(){
     if(!seeded&&s.empty&&s.metadata&&!s.metadata.fromCache){seeded=true;seedMenu()}
     mergeColl('menu',s);
     if(!migrou&&!s.empty&&s.metadata&&!s.metadata.fromCache){migrou=true;migrarPrecos()}
-    if(!s.empty&&s.metadata&&!s.metadata.fromCache)garantirAluguel();
+    if(!s.empty)garantirAluguel();
   });
   listen('mesas',DB.collection('mesas'),function(s){mergeColl('mesas',s);reparaMesas()});
   listen('fin',DB.collection('fin'),function(s){mergeColl('fin',s)});
